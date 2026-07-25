@@ -9,6 +9,8 @@
   <ItemGroup>
     <!-- Solo la pieza de hashing de Identity (PasswordHasher<T>), no el framework completo -->
     <PackageReference Include="Microsoft.Extensions.Identity.Core" Version="8.0.8" />
+    <!-- Solo para el tipo DbSet<T> en IAppDbContext — no trae SQL Server ni Infrastructure -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.8" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,9 +1,10 @@
+using GroceryApp.Application.Common;
 using GroceryApp.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace GroceryApp.Infrastructure.Data;
 
-public class GroceryAppDbContext : DbContext
+public class GroceryAppDbContext : DbContext, IAppDbContext
 {
     public GroceryAppDbContext(DbContextOptions<GroceryAppDbContext> options) : base(options) { }
 
