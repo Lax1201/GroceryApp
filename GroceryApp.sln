@@ -1,0 +1,37 @@
+
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GroceryApp.Domain", "GroceryApp.Domain\GroceryApp.Domain.csproj", "{AAB69540-0BEB-4263-AF61-CEB7E222FF59}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GroceryApp.Application", "GroceryApp.Application\GroceryApp.Application.csproj", "{85773271-46AF-42C0-A342-553EC453B898}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GroceryApp.Infrastructure", "GroceryApp.Infrastructure\GroceryApp.Infrastructure.csproj", "{2DECBFA3-4DBC-4434-A827-80116B0721C3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GroceryApp.Api", "GroceryApp.Api\GroceryApp.Api.csproj", "{46215F1E-8460-4426-8FAD-2A54A6151A3B}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{AAB69540-0BEB-4263-AF61-CEB7E222FF59}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AAB69540-0BEB-4263-AF61-CEB7E222FF59}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AAB69540-0BEB-4263-AF61-CEB7E222FF59}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AAB69540-0BEB-4263-AF61-CEB7E222FF59}.Release|Any CPU.Build.0 = Release|Any CPU
+		{85773271-46AF-42C0-A342-553EC453B898}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{85773271-46AF-42C0-A342-553EC453B898}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{85773271-46AF-42C0-A342-553EC453B898}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{85773271-46AF-42C0-A342-553EC453B898}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2DECBFA3-4DBC-4434-A827-80116B0721C3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2DECBFA3-4DBC-4434-A827-80116B0721C3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2DECBFA3-4DBC-4434-A827-80116B0721C3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2DECBFA3-4DBC-4434-A827-80116B0721C3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{46215F1E-8460-4426-8FAD-2A54A6151A3B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{46215F1E-8460-4426-8FAD-2A54A6151A3B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{46215F1E-8460-4426-8FAD-2A54A6151A3B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{46215F1E-8460-4426-8FAD-2A54A6151A3B}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
