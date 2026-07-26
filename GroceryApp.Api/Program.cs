@@ -30,6 +30,13 @@ builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
 builder.Services.AddScoped<ClienteAuthService>();
 builder.Services.AddScoped<EmpleadoAuthService>();
 
+// --- Sprint 2: zonas/direcciones y catálogo ---
+builder.Services.AddScoped<ZonaResolverService>();
+builder.Services.AddScoped<DireccionService>();
+builder.Services.AddScoped<CatalogoAdminService>();
+builder.Services.AddScoped<SucursalService>();
+builder.Services.AddScoped<CategoriaService>();
+
 // --- JWT ---
 var jwtKey = builder.Configuration["Jwt:Key"]
     ?? throw new InvalidOperationException("Falta configurar Jwt:Key en appsettings o variables de entorno.");
@@ -145,6 +152,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseStaticFiles(); // sirve wwwroot/uploads/productos/... para las fotos subidas en Sprint 2
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();

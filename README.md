@@ -1,24 +1,53 @@
 # GroceryApp
 
-## Sprint 1 — Autenticación (agregado en esta rama)
-- **Endpoints nuevos** (`/api/v1/auth/...`):
-  - `POST /api/v1/auth/cliente/registro` — nombre, teléfono (formato NI), password (mín. 6), email opcional.
-  - `POST /api/v1/auth/cliente/login` — teléfono + password.
-  - `POST /api/v1/auth/empleado/login` — usuario + password (rol viene en el JWT: EmpleadoSucursal, Repartidor o Admin).
-  - **No hay registro de empleado**: esas cuentas las crea un Admin desde el panel (Sprint 4). Por ahora hay un Admin de prueba sembrado automáticamente: usuario `admin`, password `CambiarEstaClave123!` — **cambiala en cuanto exista una pantalla real de gestión de empleados**.
-- **Recuperación de contraseña**: pospuesta a un sprint futuro (decisión tomada explícitamente, no es un olvido).
-- **Nuevo proyecto/pieza**: `GroceryApp.Application/Common/IAppDbContext.cs` — abstracción mínima para que `Application` no dependa de `Infrastructure` (necesario para que `ClienteAuthService`/`EmpleadoAuthService` puedan consultar la base de datos sin romper la dirección de dependencias).
-- **JWT real**: `GroceryApp.Infrastructure/Security/JwtTokenGenerator.cs` genera el token con claims de rol y, para empleados, `sucursalId` si aplica. Configuración de expiración en `appsettings.json` → `Jwt:ExpiraHoras` (168 = 7 días por defecto).
-- **Swagger** ahora tiene los 3 endpoints visibles con el botón "Authorize" para probar rutas protegidas más adelante.
+## Sprint 2 — Catálogo y Zonas (agregado en esta rama)
 
-No hubo cambios de esquema de base de datos en este sprint (Cliente/Empleado ya tenían `PasswordHash`), así que **no hace falta una migración nueva**.
+### Endpoints nuevos
+- `GET /api/v1/catalogo/categorias` — público, sin auth.
+- `POST /api/v1/direcciones` · `GET /api/v1/direcciones` · `PUT /api/v1/direcciones/{id}` · `DELETE /api/v1/direcciones/{id}` — requieren rol `Cliente` (token de Sprint 1). Al crear/editar, el backend calcula la zona automáticamente a partir del pin (lat/long); si el punto no cae en ninguna zona activa, devuelve `422` con "fuera de cobertura por ahora".
+- `GET /api/v1/panel/sucursales` · `POST /api/v1/panel/sucursales` — requieren rol `Admin`.
+- `GET /api/v1/panel/productos/sucursal/{sucursalId}` · `POST /api/v1/panel/productos` · `PUT /api/v1/panel/productos/{id}` · `PUT /api/v1/panel/productos/{id}/sucursal/{sucursalId}` (precio/stock) · `POST /api/v1/panel/productos/{id}/foto` (sube archivo real) — requieren rol `Admin`.
 
-## Cómo probar
-1. `dotnet run --project GroceryApp.Api`
-2. Swagger → `POST /api/v1/auth/cliente/registro` con un teléfono de 8 dígitos y password de 6+ caracteres → devuelve un JWT.
-3. `POST /api/v1/auth/empleado/login` con `admin` / `CambiarEstaClave123!` → devuelve un JWT con rol Admin.
+### ⚠️ Paso manual obligatorio antes de poder crear direcciones: el polígono de la zona
+
+Elegimos que la zona de entrega se calcule con un **polígono real** (no un radio, no un servicio pago). Eso significa que **el sistema no puede adivinar los límites del casco urbano de Carazo** — hay que dibujarlos una vez, a mano:
+
+1. Entrá a **https://geojson.io** (gratis, sin login).
+2. Con la herramienta de polígono, dibujá el borde real del casco urbano sobre el mapa (Jinotepe o el municipio que corresponda).
+3. A la derecha te va a mostrar el GeoJSON del polígono que dibujaste. Copiá los pares de coordenadas `[longitud, latitud]`.
+4. Convertilos a formato WKT (el orden es igual: longitud primero, latitud después):
+   ```
+   POLYGON((lon1 lat1, lon2 lat2, lon3 lat3, ..., lon1 lat1))
+   ```
+   (el primer y último punto deben ser iguales para cerrar el polígono).
+5. Actualizá el seed en `GroceryApp.Infrastructure/Seed/DbSeeder.cs`, en la zona "Casco urbano", agregando `PoligonoWkt = "POLYGON((...))"`.
+6. Si ya corriste el seed antes (la zona ya existe en tu base), no se va a volver a insertar — actualizá el registro directo en la tabla `Zonas` con ese WKT, o borrá la tabla y dejá que el seed la vuelva a crear.
+
+**Mientras no hagas esto, todo intento de crear una dirección va a fallar con "fuera de cobertura"** — es el comportamiento esperado, no un bug.
+
+### Migración nueva requerida
+Este sprint agrega la columna `Zona.PoligonoWkt`:
+```bash
+cd GroceryApp.Api
+dotnet ef migrations add AgregarPoligonoAZona --project ../GroceryApp.Infrastructure --startup-project .
+```
+
+### Fotos de productos
+Se guardan como archivos reales en `GroceryApp.Api/wwwroot/uploads/productos/`, servidos como estáticos (`app.UseStaticFiles()`). La carpeta está versionada vacía (`.gitkeep`); las imágenes subidas quedan ignoradas por git — en el VPS vas a necesitar backupear esa carpeta aparte si querés conservar las fotos (no viven en la base de datos, solo la URL).
+
+### Nota de diseño: Admin de prueba y Sucursal
+Para probar `POST /api/v1/panel/productos` necesitás primero crear una Sucursal real con `POST /api/v1/panel/sucursales` (usando el token del Admin de prueba de Sprint 1) y anotar el `id` que te devuelve — lo vas a necesitar en el `sucursalId` de cada producto.
 
 ---
+
+## Sprint 1 — Autenticación
+- **Endpoints** (`/api/v1/auth/...`): `cliente/registro`, `cliente/login`, `empleado/login`.
+- **No hay registro de empleado**: esas cuentas las crea un Admin desde el panel (Sprint 4). Admin de prueba sembrado: usuario `admin`, password `CambiarEstaClave123!` — **cambiala en cuanto exista una pantalla real de gestión de empleados**.
+- **Recuperación de contraseña**: pospuesta a un sprint futuro (decisión tomada explícitamente).
+- `GroceryApp.Application/Common/IAppDbContext.cs` — abstracción mínima para que `Application` no dependa de `Infrastructure`.
+- `GroceryApp.Infrastructure/Security/JwtTokenGenerator.cs` — genera el JWT con claims de rol y `sucursalId` si aplica.
+
+
 
 ## Sprint 0 — Fundación técnica y consolidación
 

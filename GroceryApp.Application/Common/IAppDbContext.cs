@@ -15,6 +15,12 @@ public interface IAppDbContext
 {
     DbSet<Cliente> Clientes { get; }
     DbSet<Empleado> Empleados { get; }
+    DbSet<Direccion> Direcciones { get; }
+    DbSet<Zona> Zonas { get; }
+    DbSet<Sucursal> Sucursales { get; }
+    DbSet<Categoria> Categorias { get; }
+    DbSet<Producto> Productos { get; }
+    DbSet<ProductoSucursal> ProductosSucursal { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

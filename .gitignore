@@ -4,3 +4,5 @@ obj/
 appsettings.Development.json
 appsettings.Production.json
 .vs/
+GroceryApp.Api/wwwroot/uploads/productos/*
+!GroceryApp.Api/wwwroot/uploads/productos/.gitkeep
