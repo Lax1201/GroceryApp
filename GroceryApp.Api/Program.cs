@@ -126,8 +126,17 @@ using (var scope = app.Services.CreateScope())
 
 // El manejador de excepciones va primero: cualquier error más abajo en el pipeline
 // termina como un ProblemDetails uniforme en vez del error crudo de ASP.NET.
-app.UseExceptionHandler();
-app.UseStatusCodePages();
+// En Development mostramos el detalle completo (stack trace) para poder debuggear;
+// el ProblemDetails genérico sin detalle queda solo para producción.
+if (app.Environment.IsDevelopment())
+{
+    app.UseDeveloperExceptionPage();
+}
+else
+{
+    app.UseExceptionHandler();
+    app.UseStatusCodePages();
+}
 
 if (app.Environment.IsDevelopment())
 {
