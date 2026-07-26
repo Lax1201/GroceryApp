@@ -1,7 +1,11 @@
 using System.Text;
 using Asp.Versioning;
+using GroceryApp.Application.Common;
+using GroceryApp.Application.Security;
+using GroceryApp.Application.Services;
 using GroceryApp.Domain.Entities;
 using GroceryApp.Infrastructure.Data;
+using GroceryApp.Infrastructure.Security;
 using GroceryApp.Infrastructure.Seed;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -19,6 +23,12 @@ builder.Services.AddDbContext<GroceryAppDbContext>(options =>
 // Cliente y Empleado son dos tipos de principal distintos, cada uno con su propio hasher.
 builder.Services.AddScoped<PasswordHasher<Cliente>>();
 builder.Services.AddScoped<PasswordHasher<Empleado>>();
+
+// --- Application: abstracción del DbContext + generador de JWT + servicios de auth ---
+builder.Services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<GroceryAppDbContext>());
+builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
+builder.Services.AddScoped<ClienteAuthService>();
+builder.Services.AddScoped<EmpleadoAuthService>();
 
 // --- JWT ---
 var jwtKey = builder.Configuration["Jwt:Key"]
@@ -109,14 +119,24 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<GroceryAppDbContext>();
+    var empleadoHasher = scope.ServiceProvider.GetRequiredService<PasswordHasher<Empleado>>();
     await db.Database.MigrateAsync();
-    await DbSeeder.SeedAsync(db);
+    await DbSeeder.SeedAsync(db, empleadoHasher);
 }
 
 // El manejador de excepciones va primero: cualquier error más abajo en el pipeline
 // termina como un ProblemDetails uniforme en vez del error crudo de ASP.NET.
-app.UseExceptionHandler();
-app.UseStatusCodePages();
+// En Development mostramos el detalle completo (stack trace) para poder debuggear;
+// el ProblemDetails genérico sin detalle queda solo para producción.
+if (app.Environment.IsDevelopment())
+{
+    app.UseDeveloperExceptionPage();
+}
+else
+{
+    app.UseExceptionHandler();
+    app.UseStatusCodePages();
+}
 
 if (app.Environment.IsDevelopment())
 {

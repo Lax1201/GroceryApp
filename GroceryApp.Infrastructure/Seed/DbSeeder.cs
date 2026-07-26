@@ -1,18 +1,19 @@
 using GroceryApp.Domain.Entities;
 using GroceryApp.Domain.Enums;
 using GroceryApp.Infrastructure.Data;
+using Microsoft.AspNetCore.Identity;
 
 namespace GroceryApp.Infrastructure.Seed;
 
 /// <summary>
-/// Seed mínimo de Sprint 0. Ajustá los nombres reales de barrios/municipios
+/// Seed mínimo de Sprint 0/1. Ajustá los nombres reales de barrios/municipios
 /// de Carazo antes de correrlo contra producción.
 /// Llamar desde Program.cs después de aplicar migraciones:
-///   await DbSeeder.SeedAsync(dbContext);
+///   await DbSeeder.SeedAsync(dbContext, passwordHasher);
 /// </summary>
 public static class DbSeeder
 {
-    public static async Task SeedAsync(GroceryAppDbContext db)
+    public static async Task SeedAsync(GroceryAppDbContext db, PasswordHasher<Empleado> empleadoHasher)
     {
         if (!db.Zonas.Any())
         {
@@ -38,6 +39,22 @@ public static class DbSeeder
             );
         }
 
+        if (!db.Empleados.Any())
+        {
+            // Cuenta de prueba para validar el login de empleado en Sprint 1.
+            // CAMBIAR el usuario/contraseña reales apenas exista una pantalla de gestión (Sprint 4).
+            var admin = new Empleado
+            {
+                Nombre = "Administrador",
+                Usuario = "admin",
+                Rol = RolEmpleado.Admin,
+                SucursalId = null
+            };
+            admin.PasswordHash = empleadoHasher.HashPassword(admin, "CambiarEstaClave123!");
+            db.Empleados.Add(admin);
+        }
+
         await db.SaveChangesAsync();
     }
 }
+
