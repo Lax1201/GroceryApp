@@ -8,22 +8,11 @@
 - `GET /api/v1/panel/sucursales` · `POST /api/v1/panel/sucursales` — requieren rol `Admin`.
 - `GET /api/v1/panel/productos/sucursal/{sucursalId}` · `POST /api/v1/panel/productos` · `PUT /api/v1/panel/productos/{id}` · `PUT /api/v1/panel/productos/{id}/sucursal/{sucursalId}` (precio/stock) · `POST /api/v1/panel/productos/{id}/foto` (sube archivo real) — requieren rol `Admin`.
 
-### ⚠️ Paso manual obligatorio antes de poder crear direcciones: el polígono de la zona
+### El polígono del casco urbano
 
-Elegimos que la zona de entrega se calcule con un **polígono real** (no un radio, no un servicio pago). Eso significa que **el sistema no puede adivinar los límites del casco urbano de Carazo** — hay que dibujarlos una vez, a mano:
+Ya está cargado en `DbSeeder.cs` (dibujado en geojson.io). El seed hace *upsert*: si la zona "Casco urbano" ya existía en tu base sin polígono, se actualiza sola la próxima vez que corras la API — no hace falta borrar nada a mano.
 
-1. Entrá a **https://geojson.io** (gratis, sin login).
-2. Con la herramienta de polígono, dibujá el borde real del casco urbano sobre el mapa (Jinotepe o el municipio que corresponda).
-3. A la derecha te va a mostrar el GeoJSON del polígono que dibujaste. Copiá los pares de coordenadas `[longitud, latitud]`.
-4. Convertilos a formato WKT (el orden es igual: longitud primero, latitud después):
-   ```
-   POLYGON((lon1 lat1, lon2 lat2, lon3 lat3, ..., lon1 lat1))
-   ```
-   (el primer y último punto deben ser iguales para cerrar el polígono).
-5. Actualizá el seed en `GroceryApp.Infrastructure/Seed/DbSeeder.cs`, en la zona "Casco urbano", agregando `PoligonoWkt = "POLYGON((...))"`.
-6. Si ya corriste el seed antes (la zona ya existe en tu base), no se va a volver a insertar — actualizá el registro directo en la tabla `Zonas` con ese WKT, o borrá la tabla y dejá que el seed la vuelva a crear.
-
-**Mientras no hagas esto, todo intento de crear una dirección va a fallar con "fuera de cobertura"** — es el comportamiento esperado, no un bug.
+Si en el futuro necesitás redibujarlo (el área creció, cambiaron los límites, etc.), repetí el proceso en geojson.io y actualizá la constante `PoligonoCascoUrbano` en `DbSeeder.cs` — el upsert se encarga del resto.
 
 ### Migración nueva requerida
 Este sprint agrega la columna `Zona.PoligonoWkt`:
