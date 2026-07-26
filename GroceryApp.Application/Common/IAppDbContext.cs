@@ -21,6 +21,9 @@ public interface IAppDbContext
     DbSet<Categoria> Categorias { get; }
     DbSet<Producto> Productos { get; }
     DbSet<ProductoSucursal> ProductosSucursal { get; }
+    DbSet<Pedido> Pedidos { get; }
+    DbSet<PedidoItem> PedidoItems { get; }
+    DbSet<Entrega> Entregas { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
