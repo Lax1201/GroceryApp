@@ -6,6 +6,7 @@ using GroceryApp.Domain.Entities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 
+
 namespace GroceryApp.Infrastructure.Security;
 
 public class JwtTokenGenerator : IJwtTokenGenerator
@@ -52,7 +53,12 @@ public class JwtTokenGenerator : IJwtTokenGenerator
         var key = _config["Jwt:Key"]
             ?? throw new InvalidOperationException("Falta configurar Jwt:Key.");
         var issuer = _config["Jwt:Issuer"] ?? "GroceryApp";
-        var horasExpiracion = _config.GetValue("Jwt:ExpiraHoras", 168); // 7 días por defecto
+        // Evitar depender de métodos de extensión que puedan faltar en algunos entornos
+        // Leemos como string y hacemos parse con valor por defecto
+        var horasExpiracionStr = _config["Jwt:ExpiraHoras"];
+        var horasExpiracion = 168;
+        if (!string.IsNullOrWhiteSpace(horasExpiracionStr) && int.TryParse(horasExpiracionStr, out var parsed))
+            horasExpiracion = parsed; // 7 días por defecto
 
         var credenciales = new SigningCredentials(
             new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)),
