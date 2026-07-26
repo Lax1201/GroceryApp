@@ -1,6 +1,6 @@
 # GroceryApp
 
-## Sprint 3 — Pedidos y Entregas (agregado en esta rama)
+## Sprint 3 — Pedidos y Entregas
 
 No hay cambios de esquema de base de datos — **no hace falta migración nueva**.
 
