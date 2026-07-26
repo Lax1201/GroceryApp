@@ -38,6 +38,10 @@ builder.Services.AddScoped<CatalogoAdminService>();
 builder.Services.AddScoped<SucursalService>();
 builder.Services.AddScoped<CategoriaService>();
 
+// --- Sprint 3: pedidos y entregas ---
+builder.Services.AddScoped<PedidoService>();
+builder.Services.AddScoped<EntregaService>();
+
 // --- JWT ---
 var jwtKey = builder.Configuration["Jwt:Key"]
     ?? throw new InvalidOperationException("Falta configurar Jwt:Key en appsettings o variables de entorno.");

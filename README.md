@@ -1,6 +1,43 @@
 # GroceryApp
 
-## Sprint 2 — Catálogo y Zonas (agregado en esta rama)
+## Sprint 3 — Pedidos y Entregas (agregado en esta rama)
+
+No hay cambios de esquema de base de datos — **no hace falta migración nueva**.
+
+### Cambio de diseño: transiciones de estado encapsuladas
+`Pedido` y `Entrega` ya no exponen `Estado` con setter público — ahora tienen métodos (`Confirmar()`, `MarcarListo()`, `MarcarEntregado()`, etc.) que validan el estado de origen y lanzan `DomainException` si la transición no es válida (ej. no se puede marcar "listo" un pedido que sigue "pendiente"). Esto cumple la mejora que habíamos dejado pendiente en la consolidación de Sprint 0. Cada servicio de `Application` atrapa esa excepción y la convierte en un `Result.Fallido(...)` — el dominio no conoce el patrón `Result`, mantiene cero dependencias externas.
+
+### Modelo de asignación de repartidores: pool (autoservicio)
+Decisión tomada pensando en escalar de 1 a varios repartidores por ciudad: el flujo normal es que **el repartidor "toma" un pedido disponible él mismo** (como Uber Eats/Rappi), no que un empleado se lo asigne. También dejamos una asignación manual de respaldo por si hace falta. La concurrencia real (dos repartidores tocando "tomar" al mismo tiempo) la resuelve el índice único de `Entregas.PedidoId` que ya existía desde Fase 5 — el chequeo previo en código es solo para dar un mensaje amigable, no la protección real.
+
+### Endpoints nuevos
+
+**Cliente** (`/api/v1/pedidos`):
+- `POST /api/v1/pedidos` — checkout. Valida catálogo, stock, que todos los productos sean de la misma sucursal, y horario de atención (bloqueo fuera de horario, Fase 1).
+- `GET /api/v1/pedidos/{id}` · `GET /api/v1/pedidos/historial` · `GET /api/v1/pedidos/{id}/seguimiento`
+- `PUT /api/v1/pedidos/{id}/cancelar` — solo si el pedido sigue en estado Pendiente (regla de Fase 1).
+
+**Empleado de sucursal / Admin** (`/api/v1/panel/pedidos`):
+- `GET /api/v1/panel/pedidos?estado=` — Admin ve todas las sucursales; EmpleadoSucursal solo la suya (vía claim `sucursalId` del JWT).
+- `PUT /{id}/confirmar` · `/rechazar` · `/iniciar-preparacion` · `/marcar-listo`
+- `DELETE /{id}/items/{itemId}` — producto faltante al preparar: se quita y se recalcula el total.
+- `PUT /{id}/asignar-repartidor` — respaldo manual (no es el flujo normal).
+
+**Repartidor** (`/api/v1/panel/entregas`):
+- `GET /disponibles` — pedidos "Listo" de su sucursal, sin tomar todavía (el pool).
+- `POST /{pedidoId}/tomar` — se autoasigna el pedido.
+- `GET /mias` — sus entregas activas.
+- `PUT /{id}/en-camino` · `/entregado` · `/no-entregado` — este último incrementa `NoShowCount` del cliente (regla de Fase 1).
+
+### Cómo probar de punta a punta
+1. Cliente: crear pedido con productos de Sprint 2 y una dirección con cobertura.
+2. Admin o EmpleadoSucursal (necesitás crear un empleado con rol `EmpleadoSucursal` directo en la base por ahora — no hay pantalla todavía): confirmar → iniciar preparación → marcar listo.
+3. Repartidor (mismo caso: crealo directo en la base con rol `Repartidor` y el `SucursalId` de tu sucursal): ver disponibles → tomar → en camino → entregado.
+4. Confirmá en la tabla `Pedidos` que el `Estado` quedó en `Entregado` y coincide con el de `Entregas`.
+
+---
+
+## Sprint 2 — Catálogo y Zonas
 
 ### Endpoints nuevos
 - `GET /api/v1/catalogo/categorias` — público, sin auth.
