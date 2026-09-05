@@ -22,17 +22,26 @@ public class EmpleadoAuthService
     // Nota: no hay endpoint de "registro" de empleado a propósito — las cuentas de
     // EmpleadoSucursal/Repartidor/Admin las crea un Admin desde el panel (Sprint 4),
     // no son autoservicio como el cliente.
-    public async Task<Result<string>> LoginAsync(string usuario, string password, CancellationToken ct = default)
+    public async Task<Result<Empleado>> ValidarCredencialesAsync(string usuario, string password, CancellationToken ct = default)
     {
         var empleado = await _db.Empleados.FirstOrDefaultAsync(e => e.Usuario == usuario, ct);
         if (empleado is null)
-            return Result<string>.Fallido("Usuario o contraseña incorrectos.");
+            return Result<Empleado>.Fallido("Usuario o contraseña incorrectos.");
 
         var resultadoVerificacion = _hasher.VerifyHashedPassword(empleado, empleado.PasswordHash, password);
         if (resultadoVerificacion == PasswordVerificationResult.Failed)
-            return Result<string>.Fallido("Usuario o contraseña incorrectos.");
+            return Result<Empleado>.Fallido("Usuario o contraseña incorrectos.");
 
-        var token = _tokenGenerator.GenerarTokenEmpleado(empleado);
+        return Result<Empleado>.Exitoso(empleado);
+    }
+
+    public async Task<Result<string>> LoginAsync(string usuario, string password, CancellationToken ct = default)
+    {
+        var validacion = await ValidarCredencialesAsync(usuario, password, ct);
+        if (!validacion.EsExitoso)
+            return Result<string>.Fallido(validacion.Error!);
+
+        var token = _tokenGenerator.GenerarTokenEmpleado(validacion.Valor!);
         return Result<string>.Exitoso(token);
     }
 }

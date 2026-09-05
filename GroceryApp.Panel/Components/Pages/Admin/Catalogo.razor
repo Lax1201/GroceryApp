@@ -1,0 +1,848 @@
+@page "/admin/catalogo"
+@page "/admin"
+@page "/admin/dashboard"
+@attribute [Authorize(Roles = "Admin")]
+@inject CatalogoAdminService CatalogoService
+@inject SucursalService SucursalService
+@inject CategoriaService CategoriaService
+@inject IWebHostEnvironment WebHostEnvironment
+
+<PageTitle>Catálogo Administrativo — GroceryApp</PageTitle>
+
+<div class="container-fluid py-4">
+    <!-- Encabezado y Acciones Principales -->
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h2 class="fw-bold mb-1">Catálogo e Inventario Multi-Sucursal</h2>
+            <p class="text-muted mb-0">Gestión de productos, precios y disponibilidad por sucursal</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-secondary" @onclick="AbrirModalCategorias">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-tags me-1" viewBox="0 0 16 16">
+                    <path d="M3 2v4.586l7 7L14.586 9l-7-7zM2 2a1 1 0 0 1 1-1h4.586a1 1 0 0 1 .707.293l7 7a1 1 0 0 1 0 1.414l-4.586 4.586a1 1 0 0 1-1.414 0l-7-7A1 1 0 0 1 2 6.586z"/>
+                    <path d="M5.5 5a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1m0 1a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3M1 7.086a1 1 0 0 0 .293.707L8.75 15.25l-.043.043a1 1 0 0 1-1.414 0l-7-7A1 1 0 0 1 0 7.586V3a1 1 0 0 1 1-1z"/>
+                </svg>
+                Categorías
+            </button>
+            <button class="btn btn-primary" @onclick="AbrirModalCrearProducto" disabled="@(Sucursales.Count == 0)">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-plus-lg me-1" viewBox="0 0 16 16">
+                    <path fill-rule="evenodd" d="M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2"/>
+                </svg>
+                Nuevo Producto
+            </button>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(MensajeExito))
+    {
+        <div class="alert alert-success alert-dismissible fade show mb-4" role="alert">
+            @MensajeExito
+            <button type="button" class="btn-close" @onclick="() => MensajeExito = null"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(MensajeError))
+    {
+        <div class="alert alert-danger alert-dismissible fade show mb-4" role="alert">
+            @MensajeError
+            <button type="button" class="btn-close" @onclick="() => MensajeError = null"></button>
+        </div>
+    }
+
+    <!-- Selector de Sucursal y Filtros -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body p-3">
+            <div class="row g-3 align-items-center">
+                <div class="col-12 col-md-4">
+                    <label class="form-label small fw-bold text-uppercase text-muted mb-1">Sucursal de Operación</label>
+                    @if (Sucursales.Count > 0)
+                    {
+                        <select class="form-select fw-semibold border-primary" value="@SucursalSeleccionadaId" @onchange="OnSucursalChanged">
+                            @foreach (var s in Sucursales)
+                            {
+                                <option value="@s.Id">@s.Nombre (@s.Direccion)</option>
+                            }
+                        </select>
+                    }
+                    else
+                    {
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="text-danger small">No hay sucursales.</span>
+                            <a href="/admin/sucursales" class="btn btn-sm btn-outline-primary">Crear sucursal</a>
+                        </div>
+                    }
+                </div>
+
+                <div class="col-12 col-sm-6 col-md-5">
+                    <label class="form-label small fw-bold text-uppercase text-muted mb-1">Buscar Producto</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-search" viewBox="0 0 16 16">
+                                <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/>
+                            </svg>
+                        </span>
+                        <input type="text" class="form-control" placeholder="Nombre o descripción..." @bind="FiltroTexto" @bind:event="oninput" />
+                    </div>
+                </div>
+
+                <div class="col-12 col-sm-6 col-md-3">
+                    <label class="form-label small fw-bold text-uppercase text-muted mb-1">Categoría</label>
+                    <select class="form-select" @bind="FiltroCategoriaId">
+                        <option value="0">Todas las categorías</option>
+                        @foreach (var c in Categorias)
+                        {
+                            <option value="@c.Id">@c.Nombre</option>
+                        }
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de Productos -->
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            @if (Cargando)
+            {
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Cargando productos...</span>
+                    </div>
+                </div>
+            }
+            else if (ProductosFiltrados.Count == 0)
+            {
+                <div class="text-center py-5">
+                    <p class="text-muted mb-2">No se encontraron productos para los filtros seleccionados.</p>
+                    @if (Sucursales.Count > 0)
+                    {
+                        <button class="btn btn-outline-primary btn-sm" @onclick="AbrirModalCrearProducto">Crear primer producto</button>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 70px;" class="text-center">Foto</th>
+                                <th>Producto</th>
+                                <th>Categoría</th>
+                                <th>Precio (Sucursal)</th>
+                                <th>Disponibilidad</th>
+                                <th class="text-end pe-4">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var p in ProductosFiltrados)
+                            {
+                                <tr>
+                                    <td class="text-center">
+                                        @if (!string.IsNullOrEmpty(p.FotoUrl))
+                                        {
+                                            <img src="@p.FotoUrl" alt="@p.Nombre" class="rounded object-fit-cover shadow-sm" style="width: 48px; height: 48px;" />
+                                        }
+                                        else
+                                        {
+                                            <div class="rounded bg-light d-flex align-items-center justify-content-center text-muted mx-auto border" style="width: 48px; height: 48px;">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-image" viewBox="0 0 16 16">
+                                                    <path d="M6.002 5.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0"/>
+                                                    <path d="M2.002 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2zm12 1a1 1 0 0 1 1 1v6.5l-3.777-1.947a.5.5 0 0 0-.577.093l-3.71 3.71-2.66-1.772a.5.5 0 0 0-.63.062L1.002 12V3a1 1 0 0 1 1-1z"/>
+                                                </svg>
+                                            </div>
+                                        }
+                                    </td>
+                                    <td>
+                                        <div class="fw-bold">@p.Nombre</div>
+                                        @if (!string.IsNullOrWhiteSpace(p.Descripcion))
+                                        {
+                                            <div class="small text-muted text-truncate" style="max-width: 280px;">@p.Descripcion</div>
+                                        }
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-light text-dark border">@p.CategoriaNombre</span>
+                                    </td>
+                                    <td>
+                                        @if (p.Precio.HasValue)
+                                        {
+                                            <span class="fw-bold text-success fs-6">C$ @p.Precio.Value.ToString("N2")</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary">Sin precio asignado</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (p.StockDisponible == true)
+                                        {
+                                            <span class="badge bg-success">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" class="bi bi-check-circle me-1" viewBox="0 0 16 16">
+                                                    <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
+                                                    <path d="m10.97 4.97-.02.022-3.473 4.425-2.093-2.094a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-1.071-1.05"/>
+                                                </svg>
+                                                Disponible
+                                            </span>
+                                        }
+                                        else if (p.StockDisponible == false)
+                                        {
+                                            <span class="badge bg-danger">Agotado</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary">No configurado</span>
+                                        }
+                                    </td>
+                                    <td class="text-end pe-4">
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-primary" title="Editar precio y stock en esta sucursal" @onclick="() => AbrirModalPrecioStock(p)">
+                                                Precio / Stock
+                                            </button>
+                                            <button class="btn btn-outline-secondary" title="Editar datos del producto" @onclick="() => AbrirModalEditar(p)">
+                                                Editar
+                                            </button>
+                                            <button class="btn btn-outline-secondary" title="Cambiar fotografía" @onclick="() => AbrirModalFoto(p)">
+                                                Foto
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: Crear Producto -->
+@if (MostrarModalCrear)
+{
+    <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5);" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title fw-bold">Crear Nuevo Producto</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="() => MostrarModalCrear = false"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="row g-3">
+                        <div class="col-12 col-md-8">
+                            <label class="form-label fw-semibold">Nombre del Producto <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" placeholder="Ej: Arroz Faisán 80/20 5 Lbs" @bind="NuevoNombre" />
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold">Categoría <span class="text-danger">*</span></label>
+                            <select class="form-select" @bind="NuevaCategoriaId">
+                                <option value="0">Seleccionar categoría...</option>
+                                @foreach (var c in Categorias)
+                                {
+                                    <option value="@c.Id">@c.Nombre</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Descripción (Opcional)</label>
+                            <textarea class="form-control" rows="2" placeholder="Detalles, presentación, marca..." @bind="NuevaDescripcion"></textarea>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">Precio Inicial (C$) <span class="text-danger">*</span></label>
+                            <input type="number" step="0.01" min="0.01" class="form-control" @bind="NuevoPrecio" />
+                            <div class="form-text">Para la sucursal seleccionada.</div>
+                        </div>
+                        <div class="col-12 col-md-6 d-flex align-items-center pt-3">
+                            <div class="form-check form-switch mt-2">
+                                <input class="form-check-input" type="checkbox" id="nuevoStock" @bind="NuevoStockDisponible" />
+                                <label class="form-check-label fw-semibold" for="nuevoStock">Stock Disponible en sucursal</label>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Fotografía del Producto (Opcional)</label>
+                            <InputFile OnChange="OnFileChangeCrear" class="form-control" accept=".jpg,.jpeg,.png,.webp" />
+                            <div class="form-text">Formatos permitidos: JPG, PNG, WEBP (máx. 5 MB).</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" @onclick="() => MostrarModalCrear = false">Cancelar</button>
+                    <button type="button" class="btn btn-primary fw-semibold" @onclick="GuardarNuevoProducto" disabled="@Guardando">
+                        @if (Guardando)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                        }
+                        Guardar Producto
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- MODAL: Editar Producto -->
+@if (MostrarModalEditar && ProductoSeleccionado != null)
+{
+    <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5);" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-secondary text-white">
+                    <h5 class="modal-title fw-bold">Editar Producto</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="() => MostrarModalEditar = false"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Nombre del Producto <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" @bind="EdicionNombre" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Categoría <span class="text-danger">*</span></label>
+                        <select class="form-select" @bind="EdicionCategoriaId">
+                            @foreach (var c in Categorias)
+                            {
+                                <option value="@c.Id">@c.Nombre</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Descripción</label>
+                        <textarea class="form-control" rows="3" @bind="EdicionDescripcion"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" @onclick="() => MostrarModalEditar = false">Cancelar</button>
+                    <button type="button" class="btn btn-primary fw-semibold" @onclick="GuardarEdicionProducto" disabled="@Guardando">
+                        @if (Guardando)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                        }
+                        Guardar Cambios
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- MODAL: Modificar Precio y Stock por Sucursal -->
+@if (MostrarModalPrecioStock && ProductoSeleccionado != null)
+{
+    <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5);" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title fw-bold">Precio y Disponibilidad</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="() => MostrarModalPrecioStock = false"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <h6 class="fw-bold mb-1">@ProductoSeleccionado.Nombre</h6>
+                        <p class="small text-muted mb-0">Sucursal actual: <strong>@NombreSucursalActual</strong></p>
+                    </div>
+                    <hr />
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Precio (C$) <span class="text-danger">*</span></label>
+                        <input type="number" step="0.01" min="0.01" class="form-control form-control-lg fw-bold" @bind="PrecioAjuste" />
+                        <div class="form-text">El precio debe ser estrictamente mayor a 0.</div>
+                    </div>
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" id="switchStock" @bind="StockAjuste" />
+                        <label class="form-check-label fw-semibold" for="switchStock">
+                            @(StockAjuste ? "Stock Disponible en esta sucursal" : "Agotado en esta sucursal")
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" @onclick="() => MostrarModalPrecioStock = false">Cancelar</button>
+                    <button type="button" class="btn btn-primary fw-semibold" @onclick="GuardarPrecioStock" disabled="@Guardando">
+                        @if (Guardando)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                        }
+                        Actualizar en Sucursal
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- MODAL: Subir Fotografía -->
+@if (MostrarModalFoto && ProductoSeleccionado != null)
+{
+    <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5);" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title fw-bold">Actualizar Fotografía</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="() => MostrarModalFoto = false"></button>
+                </div>
+                <div class="modal-body p-4 text-center">
+                    <h6 class="fw-bold mb-3">@ProductoSeleccionado.Nombre</h6>
+
+                    @if (!string.IsNullOrEmpty(ProductoSeleccionado.FotoUrl))
+                    {
+                        <div class="mb-3">
+                            <p class="small text-muted mb-1">Foto actual:</p>
+                            <img src="@ProductoSeleccionado.FotoUrl" class="img-thumbnail rounded" style="max-height: 140px;" />
+                        </div>
+                    }
+
+                    <div class="text-start mb-3">
+                        <label class="form-label fw-semibold">Seleccionar nueva imagen</label>
+                        <InputFile OnChange="OnFileChangeActualizar" class="form-control" accept=".jpg,.jpeg,.png,.webp" />
+                        <div class="form-text">Archivos permitidos: JPG, PNG o WEBP (máx. 5 MB).</div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" @onclick="() => MostrarModalFoto = false">Cancelar</button>
+                    <button type="button" class="btn btn-primary fw-semibold" @onclick="GuardarFoto" disabled="@(ArchivoSeleccionado == null || Guardando)">
+                        @if (Guardando)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                        }
+                        Subir Fotografía
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- MODAL: Administrar Categorías -->
+@if (MostrarModalCategorias)
+{
+    <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5);" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-secondary text-white">
+                    <h5 class="modal-title fw-bold">Administrar Categorías</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="() => MostrarModalCategorias = false"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Nueva Categoría</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" placeholder="Nombre de categoría..." @bind="NuevaCategoriaNombre" />
+                            <button class="btn btn-primary" @onclick="CrearCategoria" disabled="@GuardandoCategoria">
+                                @if (GuardandoCategoria)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                }
+                                Agregar
+                            </button>
+                        </div>
+                    </div>
+                    <hr />
+                    <h6 class="fw-bold mb-2">Categorías Existentes (@Categorias.Count)</h6>
+                    <div class="list-group list-group-flush border rounded" style="max-height: 220px; overflow-y: auto;">
+                        @foreach (var cat in Categorias)
+                        {
+                            <div class="list-group-item d-flex justify-content-between align-items-center py-2">
+                                <span>@cat.Nombre</span>
+                                <span class="badge bg-light text-muted border">ID: @cat.Id</span>
+                            </div>
+                        }
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" @onclick="() => MostrarModalCategorias = false">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<SucursalDto> Sucursales = new();
+    private List<CategoriaDto> Categorias = new();
+    private List<ProductoAdminDto> Productos = new();
+
+    private int SucursalSeleccionadaId = 0;
+    private bool Cargando = true;
+    private bool Guardando = false;
+    private bool GuardandoCategoria = false;
+
+    private string FiltroTexto = string.Empty;
+    private int FiltroCategoriaId = 0;
+
+    private string? MensajeExito;
+    private string? MensajeError;
+
+    // Modales
+    private bool MostrarModalCrear = false;
+    private bool MostrarModalEditar = false;
+    private bool MostrarModalPrecioStock = false;
+    private bool MostrarModalFoto = false;
+    private bool MostrarModalCategorias = false;
+
+    private ProductoAdminDto? ProductoSeleccionado;
+
+    // Campos Nuevo Producto
+    private string NuevoNombre = string.Empty;
+    private string? NuevaDescripcion;
+    private int NuevaCategoriaId = 0;
+    private decimal NuevoPrecio = 10m;
+    private bool NuevoStockDisponible = true;
+    private IBrowserFile? ArchivoNuevoProducto;
+
+    // Campos Edición Producto
+    private string EdicionNombre = string.Empty;
+    private string? EdicionDescripcion;
+    private int EdicionCategoriaId = 0;
+
+    // Campos Ajuste Precio/Stock
+    private decimal PrecioAjuste = 0m;
+    private bool StockAjuste = true;
+
+    // Campos Foto
+    private IBrowserFile? ArchivoSeleccionado;
+
+    // Categoría
+    private string NuevaCategoriaNombre = string.Empty;
+
+    private string NombreSucursalActual =>
+        Sucursales.FirstOrDefault(s => s.Id == SucursalSeleccionadaId)?.Nombre ?? "Sucursal #" + SucursalSeleccionadaId;
+
+    private List<ProductoAdminDto> ProductosFiltrados => Productos
+        .Where(p => (FiltroCategoriaId == 0 || p.CategoriaId == FiltroCategoriaId) &&
+                    (string.IsNullOrWhiteSpace(FiltroTexto) ||
+                     p.Nombre.Contains(FiltroTexto, StringComparison.OrdinalIgnoreCase) ||
+                     (p.Descripcion?.Contains(FiltroTexto, StringComparison.OrdinalIgnoreCase) ?? false)))
+        .ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarDatosIniciales();
+    }
+
+    private async Task CargarDatosIniciales()
+    {
+        Cargando = true;
+        try
+        {
+            Sucursales = await SucursalService.ListarAsync();
+            Categorias = await CategoriaService.ListarAsync();
+
+            if (Sucursales.Count > 0)
+            {
+                SucursalSeleccionadaId = Sucursales.First().Id;
+                await CargarProductos();
+            }
+        }
+        catch (Exception ex)
+        {
+            MensajeError = "Error al cargar datos: " + ex.Message;
+        }
+        finally
+        {
+            Cargando = false;
+        }
+    }
+
+    private async Task OnSucursalChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var id))
+        {
+            SucursalSeleccionadaId = id;
+            await CargarProductos();
+        }
+    }
+
+    private async Task CargarProductos()
+    {
+        if (SucursalSeleccionadaId == 0) return;
+        Cargando = true;
+        try
+        {
+            Productos = await CatalogoService.ListarPorSucursalAsync(SucursalSeleccionadaId);
+        }
+        catch (Exception ex)
+        {
+            MensajeError = "Error al cargar catálogo: " + ex.Message;
+        }
+        finally
+        {
+            Cargando = false;
+        }
+    }
+
+    // --- ACCIONES NUEVO PRODUCTO ---
+    private void AbrirModalCrearProducto()
+    {
+        NuevoNombre = string.Empty;
+        NuevaDescripcion = null;
+        NuevaCategoriaId = Categorias.FirstOrDefault()?.Id ?? 0;
+        NuevoPrecio = 10m;
+        NuevoStockDisponible = true;
+        ArchivoNuevoProducto = null;
+        MostrarModalCrear = true;
+    }
+
+    private void OnFileChangeCrear(InputFileChangeEventArgs e)
+    {
+        ArchivoNuevoProducto = e.File;
+    }
+
+    private async Task GuardarNuevoProducto()
+    {
+        if (string.IsNullOrWhiteSpace(NuevoNombre))
+        {
+            MensajeError = "El nombre del producto es obligatorio.";
+            return;
+        }
+        if (NuevaCategoriaId == 0)
+        {
+            MensajeError = "Debes seleccionar una categoría para el producto.";
+            return;
+        }
+        if (NuevoPrecio <= 0)
+        {
+            MensajeError = "El precio debe ser mayor a cero.";
+            return;
+        }
+
+        Guardando = true;
+        MensajeError = null;
+        try
+        {
+            var res = await CatalogoService.CrearAsync(
+                NuevoNombre.Trim(),
+                NuevaDescripcion?.Trim(),
+                NuevaCategoriaId,
+                SucursalSeleccionadaId,
+                NuevoPrecio,
+                NuevoStockDisponible
+            );
+
+            if (!res.EsExitoso)
+            {
+                MensajeError = res.Error;
+                return;
+            }
+
+            var productoId = res.Valor;
+
+            if (ArchivoNuevoProducto != null)
+            {
+                await GuardarArchivoFotoAsync(productoId, ArchivoNuevoProducto);
+            }
+
+            MensajeExito = $"Producto '{NuevoNombre}' creado exitosamente.";
+            MostrarModalCrear = false;
+            await CargarProductos();
+        }
+        catch (Exception ex)
+        {
+            MensajeError = "Error al crear producto: " + ex.Message;
+        }
+        finally
+        {
+            Guardando = false;
+        }
+    }
+
+    // --- ACCIONES EDITAR PRODUCTO ---
+    private void AbrirModalEditar(ProductoAdminDto p)
+    {
+        ProductoSeleccionado = p;
+        EdicionNombre = p.Nombre;
+        EdicionDescripcion = p.Descripcion;
+        EdicionCategoriaId = p.CategoriaId;
+        MostrarModalEditar = true;
+    }
+
+    private async Task GuardarEdicionProducto()
+    {
+        if (ProductoSeleccionado == null) return;
+        if (string.IsNullOrWhiteSpace(EdicionNombre))
+        {
+            MensajeError = "El nombre del producto es obligatorio.";
+            return;
+        }
+
+        Guardando = true;
+        MensajeError = null;
+        try
+        {
+            var res = await CatalogoService.ActualizarAsync(
+                ProductoSeleccionado.Id,
+                EdicionNombre.Trim(),
+                EdicionDescripcion?.Trim(),
+                EdicionCategoriaId
+            );
+
+            if (!res.EsExitoso)
+            {
+                MensajeError = res.Error;
+                return;
+            }
+
+            MensajeExito = "Producto actualizado correctamente.";
+            MostrarModalEditar = false;
+            await CargarProductos();
+        }
+        catch (Exception ex)
+        {
+            MensajeError = "Error al actualizar producto: " + ex.Message;
+        }
+        finally
+        {
+            Guardando = false;
+        }
+    }
+
+    // --- ACCIONES PRECIO / STOCK ---
+    private void AbrirModalPrecioStock(ProductoAdminDto p)
+    {
+        ProductoSeleccionado = p;
+        PrecioAjuste = p.Precio ?? 10m;
+        StockAjuste = p.StockDisponible ?? true;
+        MostrarModalPrecioStock = true;
+    }
+
+    private async Task GuardarPrecioStock()
+    {
+        if (ProductoSeleccionado == null) return;
+        if (PrecioAjuste <= 0)
+        {
+            MensajeError = "El precio debe ser estrictamente mayor a 0.";
+            return;
+        }
+
+        Guardando = true;
+        MensajeError = null;
+        try
+        {
+            var res = await CatalogoService.ActualizarPrecioStockAsync(
+                ProductoSeleccionado.Id,
+                SucursalSeleccionadaId,
+                PrecioAjuste,
+                StockAjuste
+            );
+
+            if (!res.EsExitoso)
+            {
+                MensajeError = res.Error;
+                return;
+            }
+
+            MensajeExito = $"Precio y disponibilidad actualizados para la sucursal.";
+            MostrarModalPrecioStock = false;
+            await CargarProductos();
+        }
+        catch (Exception ex)
+        {
+            MensajeError = "Error al actualizar precio y stock: " + ex.Message;
+        }
+        finally
+        {
+            Guardando = false;
+        }
+    }
+
+    // --- ACCIONES FOTO ---
+    private void AbrirModalFoto(ProductoAdminDto p)
+    {
+        ProductoSeleccionado = p;
+        ArchivoSeleccionado = null;
+        MostrarModalFoto = true;
+    }
+
+    private void OnFileChangeActualizar(InputFileChangeEventArgs e)
+    {
+        ArchivoSeleccionado = e.File;
+    }
+
+    private async Task GuardarFoto()
+    {
+        if (ProductoSeleccionado == null || ArchivoSeleccionado == null) return;
+
+        Guardando = true;
+        MensajeError = null;
+        try
+        {
+            var exito = await GuardarArchivoFotoAsync(ProductoSeleccionado.Id, ArchivoSeleccionado);
+            if (exito)
+            {
+                MensajeExito = "Fotografía actualizada exitosamente.";
+                MostrarModalFoto = false;
+                await CargarProductos();
+            }
+        }
+        catch (Exception ex)
+        {
+            MensajeError = "Error al subir fotografía: " + ex.Message;
+        }
+        finally
+        {
+            Guardando = false;
+        }
+    }
+
+    private async Task<bool> GuardarArchivoFotoAsync(int productoId, IBrowserFile file)
+    {
+        var extension = Path.GetExtension(file.Name).ToLowerInvariant();
+        var extensionesValidas = new[] { ".jpg", ".jpeg", ".png", ".webp" };
+        if (!extensionesValidas.Contains(extension))
+        {
+            MensajeError = "Solo se permiten imágenes en formato JPG, PNG o WEBP.";
+            return false;
+        }
+
+        var carpetaUploads = Path.Combine(WebHostEnvironment.WebRootPath, "uploads", "productos");
+        Directory.CreateDirectory(carpetaUploads);
+
+        var nombreArchivo = $"{productoId}-{Guid.NewGuid():N}{extension}";
+        var rutaFisica = Path.Combine(carpetaUploads, nombreArchivo);
+
+        await using (var stream = new FileStream(rutaFisica, FileMode.Create))
+        {
+            await file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024).CopyToAsync(stream);
+        }
+
+        var urlRelativa = $"/uploads/productos/{nombreArchivo}";
+        var res = await CatalogoService.ActualizarFotoAsync(productoId, urlRelativa);
+        if (!res.EsExitoso)
+        {
+            MensajeError = res.Error;
+            return false;
+        }
+
+        return true;
+    }
+
+    // --- ACCIONES CATEGORÍAS ---
+    private void AbrirModalCategorias()
+    {
+        NuevaCategoriaNombre = string.Empty;
+        MostrarModalCategorias = true;
+    }
+
+    private async Task CrearCategoria()
+    {
+        if (string.IsNullOrWhiteSpace(NuevaCategoriaNombre))
+        {
+            MensajeError = "El nombre de la categoría es obligatorio.";
+            return;
+        }
+
+        GuardandoCategoria = true;
+        try
+        {
+            var res = await CategoriaService.CrearAsync(NuevaCategoriaNombre);
+            if (res.EsExitoso)
+            {
+                NuevaCategoriaNombre = string.Empty;
+                Categorias = await CategoriaService.ListarAsync();
+            }
+            else
+            {
+                MensajeError = res.Error;
+            }
+        }
+        finally
+        {
+            GuardandoCategoria = false;
+        }
+    }
+}

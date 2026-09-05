@@ -75,13 +75,13 @@ Cuando una decisión no esté definida:
 
 # 4. Estado actual del proyecto
 
-Estado establecido al comenzar el desarrollo del Sprint 4:
+Estado al cierre de Sprint 4:
 
 - Sprint 0: completado.
 - Sprint 1: completado.
 - Sprint 2: completado.
 - Sprint 3: completado.
-- Sprint 4: siguiente sprint.
+- Sprint 4: completado.
 - Sprints 5–8: pendientes.
 
 El backend correspondiente a los Sprints 0–3 se considera funcional y debe tratarse como código existente que debe preservarse.
@@ -412,12 +412,12 @@ Puede:
 
 Puede:
 
-- visualizar entregas disponibles de su sucursal;
-- tomar una entrega;
-- visualizar sus entregas;
+- visualizar sus entregas asignadas;
 - marcar EnCamino;
 - marcar Entregado;
 - marcar NoEntregado.
+
+El repartidor NO selecciona ni toma pedidos manualmente; las entregas le son asignadas automáticamente por el sistema según la estrategia de despacho configurada o mediante asignación manual de respaldo de la sucursal.
 
 ## Admin
 
@@ -552,27 +552,62 @@ No duplicar las reglas de transición de estado dentro de los componentes Razor.
 
 ---
 
-# 18. Vista del repartidor
+# 18. Modelo de despacho y asignación de repartidores
 
 El repartidor utiliza el Panel Web.
 
 NO crear una aplicación Flutter independiente para repartidores en el MVP.
 
-Debe existir:
+### Reglas de despacho y asignación automática
+
+1. **Sin selección manual:** El repartidor **NO** selecciona ni toma pedidos manualmente.
+2. **Disparo de asignación:** Cuando un pedido pasa al estado `Listo`, debe entrar al proceso automático de asignación.
+3. **Aislamiento por sucursal:** La asignación solo puede considerar repartidores pertenecientes a la misma sucursal (`SucursalId`) del pedido.
+4. **Estrategia de asignación para la primera etapa:**
+   Para la primera etapa del producto (diseñada para operar aproximadamente un año en una sola ciudad y con una flota inicial de 1–2 repartidores), la estrategia de asignación será deliberadamente simple:
+   * Seleccionar automáticamente al repartidor elegible con menor cantidad de entregas activas (`Asignado` o `EnCamino`).
+5. **Alcance deliberado del MVP (No implementar todavía):**
+   * GPS en tiempo real de repartidores.
+   * Cálculo de distancia.
+   * Optimización de rutas.
+   * Integración con Google Maps u otros servicios de mapas para despacho.
+   * Algoritmos complejos de balanceo.
+   * Inteligencia artificial para asignación.
+   La ausencia de estas capacidades avanzadas en el MVP es intencional y no debe considerarse una deficiencia técnica.
+6. **Disponibilidad y concepto de Pool:**
+   * Si no existe ningún repartidor elegible disponible, el pedido debe permanecer en estado `Listo` dentro del pool de pedidos pendientes de asignación.
+   * Cuando posteriormente exista un repartidor disponible (por ejemplo, al finalizar una entrega o incorporarse a la sucursal), el sistema deberá poder procesar esos pedidos pendientes y asignarlos automáticamente.
+   * **Definición formal de Pool:** El concepto de "pool" queda definido como pedidos en estado `Listo` que todavía no tienen un repartidor asignado. **NO significa que los repartidores puedan seleccionar libremente un pedido.**
+7. **Desacoplamiento arquitectónico y extensibilidad:**
+   * La estrategia de asignación debe diseñarse y desacoplarse de forma que pueda reemplazarse posteriormente sin reescribir la lógica principal de pedidos, entregas, API, Panel o aplicación móvil.
+   * La arquitectura debe permitir que en el futuro se agreguen estrategias más avanzadas (proximidad geográfica, ubicación actual, carga, tiempo estimado, optimización de rutas, múltiples sucursales y ciudades).
+
+### Principio de escalabilidad
+
+> "El sistema debe ser simple para la escala inicial, pero no debe quedar acoplado a la estrategia inicial de asignación. La primera implementación prioriza simplicidad y eficiencia operacional para una ciudad con una flota pequeña; las futuras estrategias de despacho deben poder incorporarse mediante una nueva estrategia de asignación sin alterar el núcleo del dominio."
+
+### Flujo de estados de despacho
 
 ```text
-Pool de pedidos listos
+Pedido pasa a "Listo"
         ↓
-Tomar
+Proceso automático de asignación
+(repartidor elegible con menor cantidad de entregas activas en la misma sucursal)
         ↓
-Mis Entregas
-        ↓
-EnCamino
-        ↓
+   ┌────────────────────────────┴────────────────────────────┐
+   ▼                                                         ▼
+Repartidor disponible asignado                   No hay repartidor disponible
+   ↓                                                         ↓
+Mis Entregas (Asignado)                          Queda en "Listo" (Pool de pendientes)
+   ↓                                                         ↓
+EnCamino                                         Asignación automática posterior
+   ↓
 Entregado / NoEntregado
 ```
 
-La asignación mediante el pool debe conservar la protección de concurrencia existente.
+### Concurrencia e Integridad
+
+La asignación debe conservar la protección de concurrencia existente.
 
 No eliminar ni debilitar la restricción:
 
@@ -875,8 +910,8 @@ Sprint 0 — Fundación técnica              COMPLETADO
 Sprint 1 — Autenticación                  COMPLETADO
 Sprint 2 — Catálogo y zonas                COMPLETADO
 Sprint 3 — Pedidos y entregas              COMPLETADO
-Sprint 4 — Panel Blazor                   ACTUAL
-Sprint 5 — Flutter: base y catálogo       PENDIENTE
+Sprint 4 — Panel Blazor y Despacho         COMPLETADO
+Sprint 5 — Flutter: base y catálogo       SIGUIENTE
 Sprint 6 — Flutter: direcciones/checkout  PENDIENTE
 Sprint 7 — Flutter: seguimiento/historial PENDIENTE
 Sprint 8 — Integración y hardening        PENDIENTE

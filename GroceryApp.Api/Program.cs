@@ -39,8 +39,9 @@ builder.Services.AddScoped<SucursalService>();
 builder.Services.AddScoped<CategoriaService>();
 
 // --- Sprint 3: pedidos y entregas ---
-builder.Services.AddScoped<PedidoService>();
+builder.Services.AddScoped<IEstrategiaAsignacion, EstrategiaAsignacionCargaSimple>();
 builder.Services.AddScoped<EntregaService>();
+builder.Services.AddScoped<PedidoService>();
 
 // --- JWT ---
 var jwtKey = builder.Configuration["Jwt:Key"]

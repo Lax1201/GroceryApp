@@ -1,0 +1,43 @@
+@page "/"
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Cargando panel — GroceryApp</PageTitle>
+
+<div class="container py-5 text-center">
+    <div class="spinner-border text-primary my-5" role="status" style="width: 3rem; height: 3rem;">
+        <span class="visually-hidden">Redirigiendo...</span>
+    </div>
+    <p class="text-muted">Redirigiendo a tu área de trabajo...</p>
+</div>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated != true)
+        {
+            Navigation.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        if (user.IsInRole("Admin"))
+        {
+            Navigation.NavigateTo("/admin/catalogo", forceLoad: false);
+        }
+        else if (user.IsInRole("EmpleadoSucursal"))
+        {
+            Navigation.NavigateTo("/sucursal/pedidos", forceLoad: false);
+        }
+        else if (user.IsInRole("Repartidor"))
+        {
+            Navigation.NavigateTo("/repartidor/entregas", forceLoad: false);
+        }
+        else
+        {
+            Navigation.NavigateTo("/login", forceLoad: true);
+        }
+    }
+}

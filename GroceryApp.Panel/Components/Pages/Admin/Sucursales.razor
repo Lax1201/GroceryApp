@@ -1,0 +1,229 @@
+@page "/admin/sucursales"
+@attribute [Authorize(Roles = "Admin")]
+@inject SucursalService SucursalService
+
+<PageTitle>Gestión de Sucursales — GroceryApp</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h2 class="fw-bold mb-1">Gestión de Sucursales</h2>
+            <p class="text-muted mb-0">Administración de tiendas y horarios de atención al cliente</p>
+        </div>
+        <button class="btn btn-primary" @onclick="AbrirModalCrear">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-plus-lg me-1" viewBox="0 0 16 16">
+                <path fill-rule="evenodd" d="M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2"/>
+            </svg>
+            Nueva Sucursal
+        </button>
+    </div>
+
+    @if (!string.IsNullOrEmpty(MensajeExito))
+    {
+        <div class="alert alert-success alert-dismissible fade show mb-4" role="alert">
+            @MensajeExito
+            <button type="button" class="btn-close" @onclick="() => MensajeExito = null"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(MensajeError))
+    {
+        <div class="alert alert-danger alert-dismissible fade show mb-4" role="alert">
+            @MensajeError
+            <button type="button" class="btn-close" @onclick="() => MensajeError = null"></button>
+        </div>
+    }
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            @if (Cargando)
+            {
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Cargando...</span>
+                    </div>
+                </div>
+            }
+            else if (ListaSucursales.Count == 0)
+            {
+                <div class="text-center py-5">
+                    <p class="text-muted mb-3">No hay sucursales registradas en el sistema.</p>
+                    <button class="btn btn-outline-primary btn-sm" @onclick="AbrirModalCrear">Registrar primera sucursal</button>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-4">ID</th>
+                                <th>Nombre</th>
+                                <th>Dirección</th>
+                                <th>Horario de Atención</th>
+                                <th>Estado Actual</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var s in ListaSucursales)
+                            {
+                                var horaNica = TimeOnly.FromDateTime(DateTime.UtcNow.AddHours(-6));
+                                var abierta = horaNica >= s.HorarioApertura && horaNica <= s.HorarioCierre;
+                                <tr>
+                                    <td class="ps-4 fw-bold">#@s.Id</td>
+                                    <td class="fw-semibold">@s.Nombre</td>
+                                    <td class="text-muted">@s.Direccion</td>
+                                    <td>
+                                        <span class="badge bg-light text-dark border">
+                                            @s.HorarioApertura.ToString("hh\\:mm tt") — @s.HorarioCierre.ToString("hh\\:mm tt")
+                                        </span>
+                                    </td>
+                                    <td>
+                                        @if (abierta)
+                                        {
+                                            <span class="badge bg-success">Abierta</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary">Cerrada</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Modal Crear Sucursal -->
+@if (MostrarModalCrear)
+{
+    <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5);" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title fw-bold">Nueva Sucursal</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CerrarModalCrear"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Nombre de la Sucursal <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" placeholder="Ej: Sucursal Jinotepe Centro" @bind="NuevoNombre" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Dirección <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" placeholder="Ej: Del Parque Central 2c al Este" @bind="NuevaDireccion" />
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <label class="form-label fw-semibold">Horario Apertura</label>
+                            <input type="time" class="form-control" @bind="NuevoHorarioApertura" />
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-semibold">Horario Cierre</label>
+                            <input type="time" class="form-control" @bind="NuevoHorarioCierre" />
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" @onclick="CerrarModalCrear">Cancelar</button>
+                    <button type="button" class="btn btn-primary fw-semibold" @onclick="GuardarSucursal" disabled="@Guardando">
+                        @if (Guardando)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                        }
+                        Guardar Sucursal
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<SucursalDto> ListaSucursales = new();
+    private bool Cargando = true;
+    private bool Guardando = false;
+    private bool MostrarModalCrear = false;
+
+    private string NuevoNombre = string.Empty;
+    private string NuevaDireccion = string.Empty;
+    private TimeOnly NuevoHorarioApertura = new(7, 0);
+    private TimeOnly NuevoHorarioCierre = new(20, 0);
+
+    private string? MensajeExito;
+    private string? MensajeError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarSucursales();
+    }
+
+    private async Task CargarSucursales()
+    {
+        Cargando = true;
+        try
+        {
+            ListaSucursales = await SucursalService.ListarAsync();
+        }
+        catch (Exception ex)
+        {
+            MensajeError = "Error al cargar sucursales: " + ex.Message;
+        }
+        finally
+        {
+            Cargando = false;
+        }
+    }
+
+    private void AbrirModalCrear()
+    {
+        NuevoNombre = string.Empty;
+        NuevaDireccion = string.Empty;
+        NuevoHorarioApertura = new(7, 0);
+        NuevoHorarioCierre = new(20, 0);
+        MostrarModalCrear = true;
+    }
+
+    private void CerrarModalCrear()
+    {
+        MostrarModalCrear = false;
+    }
+
+    private async Task GuardarSucursal()
+    {
+        if (string.IsNullOrWhiteSpace(NuevoNombre) || string.IsNullOrWhiteSpace(NuevaDireccion))
+        {
+            MensajeError = "El nombre y la dirección de la sucursal son obligatorios.";
+            return;
+        }
+
+        Guardando = true;
+        MensajeError = null;
+        try
+        {
+            var res = await SucursalService.CrearAsync(NuevoNombre.Trim(), NuevaDireccion.Trim(), NuevoHorarioApertura, NuevoHorarioCierre);
+            if (res.EsExitoso)
+            {
+                MensajeExito = $"Sucursal '{NuevoNombre}' registrada exitosamente.";
+                MostrarModalCrear = false;
+                await CargarSucursales();
+            }
+            else
+            {
+                MensajeError = res.Error;
+            }
+        }
+        catch (Exception ex)
+        {
+            MensajeError = "Error inesperado: " + ex.Message;
+        }
+        finally
+        {
+            Guardando = false;
+        }
+    }
+}

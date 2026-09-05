@@ -68,10 +68,22 @@ public static class DbSeeder
             );
         }
 
-        if (!db.Empleados.Any())
+        if (!db.Sucursales.Any())
         {
-            // Cuenta de prueba para validar el login de empleado en Sprint 1.
-            // CAMBIAR el usuario/contraseña reales apenas exista una pantalla de gestión (Sprint 4).
+            db.Sucursales.Add(new Sucursal
+            {
+                Nombre = "Sucursal Central - Jinotepe",
+                Direccion = "Del Parque Central 2c al Este, Jinotepe, Carazo",
+                HorarioApertura = new TimeOnly(7, 0),
+                HorarioCierre = new TimeOnly(20, 0)
+            });
+            await db.SaveChangesAsync();
+        }
+
+        var sucursalPrincipal = await db.Sucursales.FirstOrDefaultAsync();
+
+        if (!db.Empleados.Any(e => e.Usuario == "admin"))
+        {
             var admin = new Empleado
             {
                 Nombre = "Administrador",
@@ -81,6 +93,35 @@ public static class DbSeeder
             };
             admin.PasswordHash = empleadoHasher.HashPassword(admin, "CambiarEstaClave123!");
             db.Empleados.Add(admin);
+        }
+
+        if (sucursalPrincipal != null)
+        {
+            if (!db.Empleados.Any(e => e.Usuario == "operador"))
+            {
+                var operador = new Empleado
+                {
+                    Nombre = "Operador Sucursal",
+                    Usuario = "operador",
+                    Rol = RolEmpleado.EmpleadoSucursal,
+                    SucursalId = sucursalPrincipal.Id
+                };
+                operador.PasswordHash = empleadoHasher.HashPassword(operador, "Operador123!");
+                db.Empleados.Add(operador);
+            }
+
+            if (!db.Empleados.Any(e => e.Usuario == "repartidor1"))
+            {
+                var repartidor = new Empleado
+                {
+                    Nombre = "Repartidor 1",
+                    Usuario = "repartidor1",
+                    Rol = RolEmpleado.Repartidor,
+                    SucursalId = sucursalPrincipal.Id
+                };
+                repartidor.PasswordHash = empleadoHasher.HashPassword(repartidor, "Repartidor123!");
+                db.Empleados.Add(repartidor);
+            }
         }
 
         await db.SaveChangesAsync();

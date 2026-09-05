@@ -23,3 +23,20 @@ public record PedidoResumenDto(
     DateTime FechaCreacion,
     string ClienteNombre
 );
+
+public record PedidoPanelDto(
+    int Id,
+    string Estado,
+    decimal Subtotal,
+    decimal TarifaEnvio,
+    decimal Total,
+    DateTime FechaCreacion,
+    string ClienteNombre,
+    string DireccionReferencia,
+    int SucursalId,
+    string SucursalNombre,
+    bool TieneEntregaAsignada,
+    string? RepartidorNombre
+);
+
+public record RepartidorDto(int Id, string Nombre, string Usuario, int? SucursalId);

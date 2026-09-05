@@ -1,0 +1,64 @@
+@inherits LayoutComponentBase
+
+<div class="page">
+    <div class="sidebar">
+        <NavMenu />
+    </div>
+
+    <main>
+        <div class="top-row px-4 d-flex justify-content-between align-items-center bg-white shadow-sm border-bottom">
+            <span class="text-muted small fw-semibold">
+                GroceryApp — Sistema Operativo
+            </span>
+
+            <AuthorizeView>
+                <Authorized>
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="text-dark small">
+                            <strong>@context.User.Identity?.Name</strong>
+                            <span class="badge @ObtenerBadgeClase(context.User) ms-1">
+                                @context.User.FindFirst(ClaimTypes.Role)?.Value
+                            </span>
+                            @if (context.User.HasClaim(c => c.Type == "sucursalId"))
+                            {
+                                <span class="badge bg-light text-dark border ms-1">
+                                    Sucursal #@context.User.FindFirst("sucursalId")?.Value
+                                </span>
+                            }
+                        </span>
+                        <a href="/auth/logout" class="btn btn-outline-danger btn-sm">
+                            Cerrar Sesión
+                        </a>
+                    </div>
+                </Authorized>
+                <NotAuthorized>
+                    <div>
+                        <a href="/login" class="btn btn-primary btn-sm">
+                            Iniciar Sesión
+                        </a>
+                    </div>
+                </NotAuthorized>
+            </AuthorizeView>
+        </div>
+
+        <article class="content px-4 py-3">
+            @Body
+        </article>
+    </main>
+</div>
+
+<div id="blazor-error-ui">
+    Ha ocurrido un error inesperado.
+    <a href="" class="reload">Recargar</a>
+    <a class="dismiss">🗙</a>
+</div>
+
+@code {
+    private string ObtenerBadgeClase(ClaimsPrincipal user)
+    {
+        if (user.IsInRole("Admin")) return "bg-danger";
+        if (user.IsInRole("EmpleadoSucursal")) return "bg-info text-dark";
+        if (user.IsInRole("Repartidor")) return "bg-warning text-dark";
+        return "bg-secondary";
+    }
+}

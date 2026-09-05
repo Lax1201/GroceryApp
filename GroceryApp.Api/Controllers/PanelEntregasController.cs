@@ -22,23 +22,6 @@ public class PanelEntregasController : ControllerBase
     }
 
     private int RepartidorIdActual => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-    private int SucursalIdActual => int.Parse(User.FindFirstValue("sucursalId")!);
-
-    /// <summary>Modelo de pool: pedidos "Listo" de su sucursal, sin repartidor asignado todavía.</summary>
-    [HttpGet("disponibles")]
-    public async Task<ActionResult<List<PedidoResumenDto>>> Disponibles(CancellationToken ct)
-        => Ok(await _entregas.ListarDisponiblesAsync(SucursalIdActual, ct));
-
-    /// <summary>El repartidor toma el pedido para sí mismo (autoservicio).</summary>
-    [HttpPost("{pedidoId:int}/tomar")]
-    public async Task<IActionResult> Tomar(int pedidoId, CancellationToken ct)
-    {
-        var resultado = await _entregas.TomarAsync(pedidoId, RepartidorIdActual, ct);
-        if (!resultado.EsExitoso)
-            return Problem(detail: resultado.Error, statusCode: StatusCodes.Status409Conflict);
-
-        return NoContent();
-    }
 
     [HttpGet("mias")]
     public async Task<ActionResult<List<EntregaDto>>> Mias(CancellationToken ct)

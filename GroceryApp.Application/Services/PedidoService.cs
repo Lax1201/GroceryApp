@@ -10,10 +10,12 @@ namespace GroceryApp.Application.Services;
 public class PedidoService
 {
     private readonly IAppDbContext _db;
+    private readonly EntregaService? _entregaService;
 
-    public PedidoService(IAppDbContext db)
+    public PedidoService(IAppDbContext db, EntregaService? entregaService = null)
     {
         _db = db;
+        _entregaService = entregaService;
     }
 
     /// <summary>
@@ -142,6 +144,70 @@ public class PedidoService
             .ToListAsync(ct);
     }
 
+    /// <summary>Cola de pedidos completa para el Panel operativo con datos de sucursal, cliente, dirección y entrega.</summary>
+    public async Task<List<PedidoPanelDto>> ListarColaPanelAsync(int? sucursalIdScope, string? estadoFiltro, CancellationToken ct = default)
+    {
+        var query = _db.Pedidos
+            .Include(p => p.Cliente)
+            .Include(p => p.Direccion)
+            .Include(p => p.Sucursal)
+            .Include(p => p.Entrega).ThenInclude(e => e!.Repartidor)
+            .AsQueryable();
+
+        if (sucursalIdScope.HasValue)
+            query = query.Where(p => p.SucursalId == sucursalIdScope.Value);
+
+        if (!string.IsNullOrWhiteSpace(estadoFiltro) && Enum.TryParse<EstadoPedido>(estadoFiltro, true, out var estadoEnum))
+            query = query.Where(p => p.Estado == estadoEnum);
+
+        return await query
+            .OrderByDescending(p => p.FechaCreacion)
+            .Select(p => new PedidoPanelDto(
+                p.Id,
+                p.Estado.ToString(),
+                p.Subtotal,
+                p.TarifaEnvio,
+                p.Total,
+                p.FechaCreacion,
+                p.Cliente != null ? p.Cliente.Nombre : "Cliente",
+                p.Direccion != null ? p.Direccion.Referencia : "",
+                p.SucursalId,
+                p.Sucursal != null ? p.Sucursal.Nombre : ("Sucursal #" + p.SucursalId),
+                p.Entrega != null,
+                p.Entrega != null && p.Entrega.Repartidor != null ? p.Entrega.Repartidor.Nombre : null
+            ))
+            .ToListAsync(ct);
+    }
+
+    /// <summary>Obtiene el detalle completo para el Panel verificando el alcance de la sucursal.</summary>
+    public async Task<Result<PedidoDetalleDto>> ObtenerDetallePanelAsync(int pedidoId, int? sucursalIdScope, CancellationToken ct = default)
+    {
+        var pedido = await _db.Pedidos
+            .Include(p => p.Items).ThenInclude(i => i.Producto)
+            .Include(p => p.Direccion)
+            .FirstOrDefaultAsync(p => p.Id == pedidoId, ct);
+
+        if (pedido is null)
+            return Result<PedidoDetalleDto>.Fallido("Pedido no encontrado.");
+
+        if (sucursalIdScope.HasValue && pedido.SucursalId != sucursalIdScope.Value)
+            return Result<PedidoDetalleDto>.Fallido("No tienes acceso a los pedidos de otra sucursal.");
+
+        return Result<PedidoDetalleDto>.Exitoso(new PedidoDetalleDto(
+            pedido.Id,
+            pedido.Estado.ToString(),
+            pedido.SucursalId,
+            pedido.Direccion != null ? pedido.Direccion.Referencia : "",
+            pedido.TarifaEnvio,
+            pedido.Subtotal,
+            pedido.Total,
+            pedido.FechaCreacion,
+            pedido.Items
+                .Select(i => new PedidoItemDto(i.Id, i.ProductoId, i.Producto != null ? i.Producto.Nombre : ("Producto #" + i.ProductoId), i.Cantidad, i.PrecioUnitario, i.Subtotal))
+                .ToList()
+        ));
+    }
+
     public Task<Result> ConfirmarAsync(int pedidoId, int? sucursalIdScope, CancellationToken ct = default)
         => CambiarEstadoConScopeAsync(pedidoId, sucursalIdScope, p => p.Confirmar(), ct);
 
@@ -151,8 +217,19 @@ public class PedidoService
     public Task<Result> IniciarPreparacionAsync(int pedidoId, int? sucursalIdScope, CancellationToken ct = default)
         => CambiarEstadoConScopeAsync(pedidoId, sucursalIdScope, p => p.IniciarPreparacion(), ct);
 
-    public Task<Result> MarcarListoAsync(int pedidoId, int? sucursalIdScope, CancellationToken ct = default)
-        => CambiarEstadoConScopeAsync(pedidoId, sucursalIdScope, p => p.MarcarListo(), ct);
+    public async Task<Result> MarcarListoAsync(int pedidoId, int? sucursalIdScope, CancellationToken ct = default)
+    {
+        var resultado = await CambiarEstadoConScopeAsync(pedidoId, sucursalIdScope, p => p.MarcarListo(), ct);
+        if (!resultado.EsExitoso)
+            return resultado;
+
+        if (_entregaService != null)
+        {
+            await _entregaService.AsignarAutomaticoAsync(pedidoId, ct);
+        }
+
+        return Result.Exitoso();
+    }
 
     public async Task<Result> EliminarItemAsync(int pedidoId, int itemId, int? sucursalIdScope, CancellationToken ct = default)
     {

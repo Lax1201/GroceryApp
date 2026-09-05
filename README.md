@@ -1,5 +1,29 @@
 # GroceryApp
 
+## Sprint 4 — Panel Web Blazor Server y Despacho Automático
+
+Panel web operativo funcional para administración interna, gestión de sucursales, cola de pedidos y despacho de entregas.
+
+### Novedades de Sprint 4
+* **Panel Web Blazor Server (`GroceryApp.Panel`)**: Implementado en .NET 8 con modo interactivo de servidor (`InteractiveServerComponents`).
+* **Autenticación y Autorización por Cookies**: Circuito seguro con claims de rol (`Admin`, `EmpleadoSucursal`, `Repartidor`) y ámbito de sucursal (`sucursalId`). Redirección automática por rol tras el login.
+* **Módulos Operativos**:
+  * `/login`: Inicio de sesión seguro con hash PBKDF2 y logout controlado.
+  * `/admin/dashboard`: Métricas de negocio y supervisión rápida.
+  * `/admin/catalogo`: Listado, creación y edición de productos, categorías, subida de fotos a disco, precio y disponibilidad de stock por sucursal.
+  * `/admin/sucursales`: Supervisión de sucursales activas y horarios.
+  * `/sucursal/pedidos`: Cola operativa en tiempo real con filtros por estado, avance de pedidos y modal detallado con recálculo por faltantes.
+  * `/repartidor/entregas`: Módulo exclusivo del repartidor para gestionar sus entregas asignadas (`EnCamino`, `Entregado`, `NoEntregado`), con vista de supervisión de pool para administradores.
+* **Modelo de Despacho Automático Desacoplado**:
+  * Al pasar un pedido a `Listo`, se dispara automáticamente `EntregaService.AsignarAutomaticoAsync`.
+  * Algoritmo desacoplado mediante `IEstrategiaAsignacion` (implementación inicial: `EstrategiaAsignacionCargaSimple`).
+  * Asignación al repartidor de la misma sucursal con menor cantidad de entregas activas (`Asignado` o `EnCamino`).
+  * Los pedidos sin repartidor quedan en `Listo` (Pool de pendientes) y se reintentan automáticamente cuando un repartidor finaliza una entrega.
+  * El repartidor **NO** puede tomar pedidos manualmente del pool.
+* **Pruebas Automatizadas (`GroceryApp.Tests`)**: Suite de tests xUnit sobre SQLite in-memory que valida todo el flujo de despacho, aislamiento por sucursal, menor carga, histórico no activo y concurrencia por índice UNIQUE (9/9 pruebas exitosas).
+
+---
+
 ## Sprint 3 — Pedidos y Entregas
 
 No hay cambios de esquema de base de datos — **no hace falta migración nueva**.
@@ -7,11 +31,10 @@ No hay cambios de esquema de base de datos — **no hace falta migración nueva*
 ### Cambio de diseño: transiciones de estado encapsuladas
 `Pedido` y `Entrega` ya no exponen `Estado` con setter público — ahora tienen métodos (`Confirmar()`, `MarcarListo()`, `MarcarEntregado()`, etc.) que validan el estado de origen y lanzan `DomainException` si la transición no es válida (ej. no se puede marcar "listo" un pedido que sigue "pendiente"). Esto cumple la mejora que habíamos dejado pendiente en la consolidación de Sprint 0. Cada servicio de `Application` atrapa esa excepción y la convierte en un `Result.Fallido(...)` — el dominio no conoce el patrón `Result`, mantiene cero dependencias externas.
 
-### Modelo de asignación de repartidores: pool (autoservicio)
-Decisión tomada pensando en escalar de 1 a varios repartidores por ciudad: el flujo normal es que **el repartidor "toma" un pedido disponible él mismo** (como Uber Eats/Rappi), no que un empleado se lo asigne. También dejamos una asignación manual de respaldo por si hace falta. La concurrencia real (dos repartidores tocando "tomar" al mismo tiempo) la resuelve el índice único de `Entregas.PedidoId` que ya existía desde Fase 5 — el chequeo previo en código es solo para dar un mensaje amigable, no la protección real.
+### Modelo de despacho
+*(Actualizado en Sprint 4)*: El modelo inicial de toma manual fue reemplazado por la **asignación automática por menor carga activa** desacoplada mediante `IEstrategiaAsignacion`. La asignación se dispara automáticamente cuando un pedido pasa a `Listo`. La concurrencia real la resuelve el índice único de `Entregas.PedidoId`.
 
-### Endpoints nuevos
-
+### Endpoints
 **Cliente** (`/api/v1/pedidos`):
 - `POST /api/v1/pedidos` — checkout. Valida catálogo, stock, que todos los productos sean de la misma sucursal, y horario de atención (bloqueo fuera de horario, Fase 1).
 - `GET /api/v1/pedidos/{id}` · `GET /api/v1/pedidos/historial` · `GET /api/v1/pedidos/{id}/seguimiento`
@@ -19,15 +42,13 @@ Decisión tomada pensando en escalar de 1 a varios repartidores por ciudad: el f
 
 **Empleado de sucursal / Admin** (`/api/v1/panel/pedidos`):
 - `GET /api/v1/panel/pedidos?estado=` — Admin ve todas las sucursales; EmpleadoSucursal solo la suya (vía claim `sucursalId` del JWT).
-- `PUT /{id}/confirmar` · `/rechazar` · `/iniciar-preparacion` · `/marcar-listo`
+- `PUT /{id}/confirmar` · `/rechazar` · `/iniciar-preparacion` · `/marcar-listo` (dispara la asignación automática).
 - `DELETE /{id}/items/{itemId}` — producto faltante al preparar: se quita y se recalcula el total.
-- `PUT /{id}/asignar-repartidor` — respaldo manual (no es el flujo normal).
+- `PUT /{id}/asignar-repartidor` — respaldo manual (supervisión o excepciones).
 
 **Repartidor** (`/api/v1/panel/entregas`):
-- `GET /disponibles` — pedidos "Listo" de su sucursal, sin tomar todavía (el pool).
-- `POST /{pedidoId}/tomar` — se autoasigna el pedido.
-- `GET /mias` — sus entregas activas.
-- `PUT /{id}/en-camino` · `/entregado` · `/no-entregado` — este último incrementa `NoShowCount` del cliente (regla de Fase 1).
+- `GET /mias` — sus entregas asignadas activas.
+- `PUT /{id}/en-camino` · `/entregado` · `/no-entregado` — finaliza la entrega, procesa pendientes del pool e incrementa `NoShowCount` si aplica.
 
 ### Cómo probar de punta a punta
 1. Cliente: crear pedido con productos de Sprint 2 y una dirección con cobertura.
@@ -125,17 +146,18 @@ dotnet run --project GroceryApp.Api
 - Health checks (`/health`).
 - Encapsular las transiciones de estado de `Pedido` en métodos en vez de setter directo (se evalúa en Sprint 3).
 
-## Qué NO está todavía (a propósito)
-Catálogo/zonas (Sprint 2), pedidos/entregas (Sprint 3), panel Blazor (Sprint 4) y la app Flutter (Sprints 5-7) van en las siguientes entregas, uno a la vez.
+## Qué sigue
+La aplicación cliente en Flutter (Sprints 5-7) y la integración final y hardening (Sprint 8).
 
-## Estructura
+## Estructura de la solución
 ```
 GroceryApp.sln
 GroceryApp.Domain/           → entidades y enums, sin dependencias externas
-GroceryApp.Application/      → Result pattern, IAppDbContext, IJwtTokenGenerator, ClienteAuthService, EmpleadoAuthService
-GroceryApp.Infrastructure/   → DbContext, configuración EF Core, seed, JwtTokenGenerator
-GroceryApp.Api/              → Program.cs, controllers, contratos, JWT, versionado, ProblemDetails, Swagger
+GroceryApp.Application/      → casos de uso, Result pattern, IAppDbContext, servicios, despacho
+GroceryApp.Infrastructure/   → DbContext, configuración EF Core, migraciones, seed, JwtTokenGenerator
+GroceryApp.Api/              → ASP.NET Core Web API, controllers, JWT, versionado, ProblemDetails
+GroceryApp.Panel/            → Blazor Server (.NET 8), Auth cookies, componentes interactivos
+GroceryApp.Tests/            → Suite de pruebas automatizadas xUnit con SQLite in-memory
 ```
-`GroceryApp.Shared` y `GroceryApp.Panel` se agregan cuando haya lógica real que poner ahí (Sprint 4 en adelante).
 
 
