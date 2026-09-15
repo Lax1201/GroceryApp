@@ -53,7 +53,7 @@ No hay cambios de esquema de base de datos — **no hace falta migración nueva*
 ### Cómo probar de punta a punta
 1. Cliente: crear pedido con productos de Sprint 2 y una dirección con cobertura.
 2. Admin o EmpleadoSucursal (necesitás crear un empleado con rol `EmpleadoSucursal` directo en la base por ahora — no hay pantalla todavía): confirmar → iniciar preparación → marcar listo.
-3. Repartidor (mismo caso: crealo directo en la base con rol `Repartidor` y el `SucursalId` de tu sucursal): ver disponibles → tomar → en camino → entregado.
+3. Repartidor (mismo caso: crealo directo en la base con rol `Repartidor` y el `SucursalId` de tu sucursal): recibe asignación automática al marcar Listo → en camino → entregado.
 4. Confirmá en la tabla `Pedidos` que el `Estado` quedó en `Entregado` y coincide con el de `Entregas`.
 
 ---

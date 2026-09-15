@@ -132,9 +132,15 @@ public class EntregaService
             return Result.Fallido("Solo se puede asignar un repartidor a un pedido en estado Listo.");
 
         var repartidor = await _db.Empleados
-            .FirstOrDefaultAsync(e => e.Id == repartidorId && e.Rol == RolEmpleado.Repartidor, ct);
+            .FirstOrDefaultAsync(e => e.Id == repartidorId, ct);
         if (repartidor is null)
             return Result.Fallido("El repartidor indicado no existe.");
+
+        if (repartidor.Rol != RolEmpleado.Repartidor)
+            return Result.Fallido("El empleado indicado no tiene rol de repartidor.");
+
+        if (repartidor.SucursalId != pedido.SucursalId)
+            return Result.Fallido("El repartidor no pertenece a la sucursal del pedido.");
 
         var yaAsignado = await _db.Entregas.AnyAsync(e => e.PedidoId == pedidoId, ct);
         if (yaAsignado)

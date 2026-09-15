@@ -1,4 +1,4 @@
-﻿# GroceryApp — Estado del Proyecto (Project Status)
+# GroceryApp — Estado del Proyecto (Project Status)
 
 **Fecha de corte:** Septiembre 2026  
 **Hito completado:** Sprint 4 — Panel Web Blazor Server y Modelo de Despacho Automático  
@@ -187,22 +187,32 @@ Se configuró el proyecto `GroceryApp.Tests` en .NET 8 con xUnit y SQLite in-mem
 | 7 | `Test7_EntregasEntregadoYNoEntregado_NoCuentanComoCargaActiva` | Históricos `Entregado`/`NoEntregado` no suman carga | Superado |
 | 8 | `Test8_NoPermitirDobleEntregaParaElMismoPedido` | Idempotencia y restricción `UNIQUE` en base de datos | Superado |
 | 9 | `Test9_EstrategiaPuedeSerSustituida_MedianteIEstrategiaAsignacion` | Desacoplamiento e inyección de estrategias alternativas | Superado |
+| 10 | `AsignacionManual_RepartidorDeOtraSucursal_DebeFallar` | Rechazo de asignación manual cruzada entre sucursales y confirmación en misma sucursal | Superado |
 
-**Métricas:** 9 pruebas ejecutadas, 9 exitosas, 0 fallidas (100% de éxito).
+**Métricas:** 10 pruebas ejecutadas, 10 exitosas, 0 fallidas (100% de éxito).
 
 ---
 
-## 8. Base de Datos y Migraciones
+## 8. Sprint 4.1 Hardening
+
+- **Validación de sucursal en asignación manual:** `EntregaService.AsignarManualAsync` valida que el repartidor exista, tenga rol `Repartidor` y pertenezca obligatoriamente a la misma sucursal del pedido (`pedido.SucursalId == repartidor.SucursalId`). Cualquier intento de cruzar sucursales resulta en fallo sin crear registros de `Entrega`.
+- **Protección de autorización:** `PanelPedidosController` audita y restringe el ámbito de sucursales (`SucursalScope`), protegiendo la asignación manual exclusivamente para `Admin` y `EmpleadoSucursal` (dentro de su sucursal). `Repartidor` y `Cliente` no tienen acceso.
+- **Prueba automatizada de asignación cruzada:** Test específico implementado y superado en `GroceryApp.Tests/DespachoAutomaticoTests.cs`.
+- **Build/tests verificados:** Solución compilada con 0 advertencias y 0 errores; 10 pruebas xUnit ejecutadas y superadas. Ausencia confirmada de regresiones de autoservicio (`TomarAsync`, `ListarDisponiblesAsync`, `/tomar`, `/disponibles`).
+
+---
+
+## 9. Base de Datos y Migraciones
 
 Migraciones Code-First aplicadas:
 1. `20260725212427_InitialCreate`: Estructura inicial completa (tablas, relaciones, restricciones de chequeo e índices únicos).
 2. `20260726171708_AgregarPoligonoAZona`: Incorporación de columna `PoligonoWkt` en tabla `Zonas` para delimitación geográfica.
 
-No se requieren migraciones adicionales para el modelo de despacho de Sprint 4.
+No se requieren migraciones adicionales para el modelo de despacho de Sprint 4 ni Sprint 4.1.
 
 ---
 
-## 9. Deuda Técnica Real y Conocida
+## 10. Deuda Técnica Real y Conocida
 
 1. **Almacenamiento local de fotografías de productos:** Las imágenes subidas desde el panel se guardan en el sistema de archivos local (`wwwroot/uploads/productos/`). Para un despliegue en múltiples instancias o nube se requerirá migrar a Blob Storage (ej. Azure Blob Storage o AWS S3).
 2. **Evaluación de polígonos geoespaciales en memoria:** `ZonaResolverService` evalúa la cobertura utilizando NetTopologySuite en memoria en lugar de utilizar tipos espaciales nativos de SQL Server (`geography`), adecuado para el casco urbano inicial pero optimizable a futuro.
@@ -213,9 +223,9 @@ No se requieren migraciones adicionales para el modelo de despacho de Sprint 4.
 
 ---
 
-## 10. Próximos Pasos Recomendados
+## 11. Próximos Pasos Recomendados
 
-1. **Autorizar y consolidar el commit de cierre del Sprint 4.**
+1. **Autorizar y consolidar el commit de cierre de Sprint 4 / Sprint 4.1.**
 2. **Avanzar al Sprint 5:**
    * Crear el proyecto Flutter para clientes (`grocery_app_mobile`).
    * Configurar arquitectura base móvil (gestor de estado, cliente HTTP con Dio, almacenamiento seguro de token).

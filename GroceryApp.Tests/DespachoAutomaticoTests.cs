@@ -410,6 +410,50 @@ public class DespachoAutomaticoTests : IDisposable
         Assert.Equal(999, entrega.RepartidorId);
     }
 
+    [Fact]
+    public async Task AsignacionManual_RepartidorDeOtraSucursal_DebeFallar()
+    {
+        // Arrange: Sucursal A y Sucursal B
+        var (sucursalA, clienteA, dirA) = await CrearEntornoBaseAsync("Sucursal Jinotepe");
+        var (sucursalB, _, _) = await CrearEntornoBaseAsync("Sucursal Diriamba");
+
+        // Repartidor en Sucursal B y Repartidor en Sucursal A
+        var repB = await CrearRepartidorAsync(sucursalB.Id, "Repartidor Sucursal B", "rep_b");
+        var repA = await CrearRepartidorAsync(sucursalA.Id, "Repartidor Sucursal A", "rep_a");
+
+        // Pedido perteneciente a Sucursal A en estado Listo
+        var pedidoA = await CrearPedidoEnPreparacionAsync(sucursalA.Id, clienteA.Id, dirA.Id);
+        pedidoA.MarcarListo();
+        await _db.SaveChangesAsync();
+
+        // Act 1: Intento de asignación manual al repartidor de la Sucursal B (sin scope / vista admin)
+        var resSinScope = await _entregaService.AsignarManualAsync(pedidoA.Id, repB.Id, sucursalIdScope: null);
+
+        // Act 1b: Intento de asignación manual al repartidor de la Sucursal B (con scope de Sucursal A / empleado de sucursal)
+        var resConScope = await _entregaService.AsignarManualAsync(pedidoA.Id, repB.Id, sucursalIdScope: sucursalA.Id);
+
+        // Assert 1: La asignación a un repartidor de otra sucursal debe fallar y no debe crearse Entrega
+        Assert.False(resSinScope.EsExitoso);
+        Assert.Contains("sucursal", resSinScope.Error, StringComparison.OrdinalIgnoreCase);
+
+        Assert.False(resConScope.EsExitoso);
+        Assert.Contains("sucursal", resConScope.Error, StringComparison.OrdinalIgnoreCase);
+
+        var entregaExiste = await _db.Entregas.AnyAsync(e => e.PedidoId == pedidoA.Id);
+        Assert.False(entregaExiste);
+
+        // Act 2 (Caso contrario): Asignación manual al repartidor de la misma Sucursal A
+        var resExitoso = await _entregaService.AsignarManualAsync(pedidoA.Id, repA.Id, sucursalIdScope: sucursalA.Id);
+
+        // Assert 2: La asignación dentro de la misma sucursal debe ser exitosa y crear la Entrega
+        Assert.True(resExitoso.EsExitoso);
+
+        var entrega = await _db.Entregas.FirstOrDefaultAsync(e => e.PedidoId == pedidoA.Id);
+        Assert.NotNull(entrega);
+        Assert.Equal(repA.Id, entrega.RepartidorId);
+        Assert.Equal(EstadoEntrega.Asignado, entrega.Estado);
+    }
+
     private class EstrategiaMockSiempreRepartidorEspecifico : IEstrategiaAsignacion
     {
         private readonly int _repartidorId;

@@ -31,7 +31,8 @@ public class PanelPedidosController : ControllerBase
         {
             if (User.IsInRole("Admin")) return null;
             var claim = User.FindFirstValue("sucursalId");
-            return claim is null ? null : int.Parse(claim);
+            if (int.TryParse(claim, out var id)) return id;
+            return -1; // Restringe acceso a sucursal si el claim no está presente o no es válido
         }
     }
 
@@ -60,7 +61,7 @@ public class PanelPedidosController : ControllerBase
     public async Task<IActionResult> EliminarItem(int id, int itemId, CancellationToken ct)
         => Responder(await _pedidos.EliminarItemAsync(id, itemId, SucursalScope, ct));
 
-    /// <summary>Respaldo manual — el flujo normal es que el repartidor "tome" el pedido él mismo.</summary>
+    /// <summary>Respaldo manual de asignación (empleado de sucursal o admin).</summary>
     [HttpPut("{id:int}/asignar-repartidor")]
     public async Task<IActionResult> AsignarRepartidor(int id, AsignarRepartidorRequest request, CancellationToken ct)
         => Responder(await _entregas.AsignarManualAsync(id, request.RepartidorId, SucursalScope, ct));
