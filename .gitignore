@@ -6,3 +6,10 @@ appsettings.Production.json
 .vs/
 GroceryApp.Api/wwwroot/uploads/productos/*
 !GroceryApp.Api/wwwroot/uploads/productos/.gitkeep
+
+# Flutter
+grocery_app_mobile/.dart_tool/
+grocery_app_mobile/build/
+grocery_app_mobile/.flutter-plugins
+grocery_app_mobile/.flutter-plugins-dependencies
+
