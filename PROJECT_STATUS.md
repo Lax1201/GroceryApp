@@ -1,8 +1,8 @@
 # GroceryApp — Estado del Proyecto (Project Status)
 
 **Fecha de corte:** Septiembre 2026  
-**Hito completado:** Sprint 4 — Panel Web Blazor Server y Modelo de Despacho Automático  
-**Próximo hito:** Sprint 5 — Aplicación Cliente en Flutter (Base y Catálogo)
+**Hito completado:** Sprint 5 — Aplicación Cliente en Flutter (Base y Catálogo)  
+**Próximo hito:** Sprint 6 — Aplicación Cliente en Flutter (Direcciones y Checkout)
 
 ---
 
@@ -16,7 +16,7 @@ El proyecto **GroceryApp** ha completado con éxito la fase fundacional del back
 * **Sprint 2 — Catálogo y zonas:** COMPLETADO
 * **Sprint 3 — Pedidos y entregas (Core Backend):** COMPLETADO
 * **Sprint 4 — Panel Web Blazor Server y Despacho Automático:** COMPLETADO
-* **Sprint 5 — Flutter: base y catálogo móvil:** PENDIENTE
+* **Sprint 5 — Flutter: base y catálogo móvil:** COMPLETADO
 * **Sprint 6 — Flutter: direcciones y checkout:** PENDIENTE
 * **Sprint 7 — Flutter: seguimiento e historial:** PENDIENTE
 * **Sprint 8 — Integración final y hardening:** PENDIENTE
@@ -202,17 +202,29 @@ Se configuró el proyecto `GroceryApp.Tests` en .NET 8 con xUnit y SQLite in-mem
 
 ---
 
-## 9. Base de Datos y Migraciones
+## 9. Sprint 5 — Aplicación Cliente en Flutter (Base y Catálogo)
+
+- **Proyecto Móvil (`grocery_app_mobile`)**: Creado e integrado en la solución con Flutter 3.47 / Dart 3.13. Arquitectura limpia por capas y características (`core`, `features/auth`, `features/catalog`, `features/cart`).
+- **Autenticación de Cliente**: Registro de nuevo cliente con validación telefónica nicaragüense (+505), Login contra backend JWT, persistencia cifrada en `flutter_secure_storage`, interceptor automático de token Bearer en `Dio` y flujo de expiración.
+- **Catálogo y Productos**: Exploración pública sin autenticación requerida obligatoria para navegación. Filtro horizontal por categoría mediante `ChoiceChip`, barra de búsqueda reactiva por texto, tarjetas de producto con precio en Córdobas (C$), indicador de stock/agotado y carga de imágenes.
+- **Detalle de Producto**: Pantalla individual con galería/imagen principal, selector de cantidad, descripción completa y botón de agregar al carrito sincronizado con el stock.
+- **Carrito Local (Sprint 5)**: Gestión de estado en memoria mediante `flutter_riverpod` (`CartNotifier`), cálculo en tiempo real de subtotales por ítem y total general, operaciones de incremento, decremento, eliminación y vaciado. Sin checkout en este sprint conforme a la hoja de ruta.
+- **Backend API**: Endpoints cliente `/api/v1/catalogo/categorias`, `/api/v1/catalogo/productos` (con filtros `categoriaId` y `busqueda`), y `/api/v1/catalogo/productos/{id}` implementados y protegidos con pruebas unitarias (`CatalogoClienteTests`).
+- **Suite de Pruebas**: 15 pruebas unitarias automatizadas en Flutter (`auth_state_test.dart`, `cart_provider_test.dart`, `models_test.dart`) pasando al 100%, más 15 pruebas unitarias en backend .NET pasando al 100%.
+
+---
+
+## 10. Base de Datos y Migraciones
 
 Migraciones Code-First aplicadas:
 1. `20260725212427_InitialCreate`: Estructura inicial completa (tablas, relaciones, restricciones de chequeo e índices únicos).
 2. `20260726171708_AgregarPoligonoAZona`: Incorporación de columna `PoligonoWkt` en tabla `Zonas` para delimitación geográfica.
 
-No se requieren migraciones adicionales para el modelo de despacho de Sprint 4 ni Sprint 4.1.
+No se requieren migraciones adicionales para el catálogo público ni la aplicación móvil de Sprint 5.
 
 ---
 
-## 10. Deuda Técnica Real y Conocida
+## 11. Deuda Técnica Real y Conocida
 
 1. **Almacenamiento local de fotografías de productos:** Las imágenes subidas desde el panel se guardan en el sistema de archivos local (`wwwroot/uploads/productos/`). Para un despliegue en múltiples instancias o nube se requerirá migrar a Blob Storage (ej. Azure Blob Storage o AWS S3).
 2. **Evaluación de polígonos geoespaciales en memoria:** `ZonaResolverService` evalúa la cobertura utilizando NetTopologySuite en memoria en lugar de utilizar tipos espaciales nativos de SQL Server (`geography`), adecuado para el casco urbano inicial pero optimizable a futuro.
@@ -223,10 +235,13 @@ No se requieren migraciones adicionales para el modelo de despacho de Sprint 4 n
 
 ---
 
-## 11. Próximos Pasos Recomendados
+## 12. Próximos Pasos (Sprint 6)
 
-1. **Autorizar y consolidar el commit de cierre de Sprint 4 / Sprint 4.1.**
-2. **Avanzar al Sprint 5:**
-   * Crear el proyecto Flutter para clientes (`grocery_app_mobile`).
-   * Configurar arquitectura base móvil (gestor de estado, cliente HTTP con Dio, almacenamiento seguro de token).
-   * Implementar autenticación del cliente (registro y login contra API) y visualización del catálogo público y categorías.
+1. **Gestión de direcciones de entrega en Flutter**:
+   * Listar direcciones del cliente guardadas.
+   * Formulario de creación/edición de direcciones.
+   * Validación de zona de cobertura antes de guardar o realizar pedido.
+2. **Flujo de Checkout**:
+   * Pantalla de confirmación de pedido con dirección seleccionada, método de pago en efectivo contra entrega y cálculo de tarifa de envío según zona.
+   * Envío del pedido mediante `POST /api/v1/pedidos`.
+   * Vaciado automático del carrito local tras creación exitosa.
