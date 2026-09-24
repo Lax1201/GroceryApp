@@ -35,6 +35,7 @@ builder.Services.AddScoped<EmpleadoAuthService>();
 builder.Services.AddScoped<ZonaResolverService>();
 builder.Services.AddScoped<DireccionService>();
 builder.Services.AddScoped<CatalogoAdminService>();
+builder.Services.AddScoped<CatalogoService>();
 builder.Services.AddScoped<SucursalService>();
 builder.Services.AddScoped<CategoriaService>();
 

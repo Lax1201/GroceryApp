@@ -1,5 +1,35 @@
 # GroceryApp
 
+## Sprint 5 — Aplicación Cliente en Flutter (Base y Catálogo)
+
+Aplicación móvil cliente para Android desarrollada en Flutter, con autenticación JWT, catálogo público categorizado, búsqueda en tiempo real, detalle de producto y carrito de compras local.
+
+### Novedades de Sprint 5
+* **Aplicación Móvil Flutter (`grocery_app_mobile`)**: Proyecto integrado con Flutter 3.47 / Dart 3.13, arquitectura limpia y componentes modulares.
+* **Autenticación Móvil**:
+  * Registro de nuevo cliente con validación telefónica (+505) y contraseña.
+  * Inicio de sesión JWT persistido de forma segura en `flutter_secure_storage`.
+  * Interceptor de red `Dio` con inyección transparente de encabezado `Authorization: Bearer <token>`.
+  * Restauración automática de sesión activa desde Splash Screen y Logout controlado.
+* **Catálogo Público y Búsqueda**:
+  * Consumo de `/api/v1/catalogo/categorias` y `/api/v1/catalogo/productos`.
+  * Navegación y exploración pública sin requerir login obligatorio inicial.
+  * Selector horizontal de categorías mediante `ChoiceChip` ('Todas' + categorías dinámicas).
+  * Barra de búsqueda reactiva con debounce y filtrado en servidor.
+  * Tarjetas de producto con precios en Córdobas (C$), indicador visual de stock/agotado y resolución de fotos relativas/absolutas.
+* **Detalle de Producto**:
+  * Vista individual con imagen ampliada, descripción, selector de cantidades (incremento/decremento) y adición al carrito con feedback visual (SnackBar).
+* **Carrito Local**:
+  * Gestor de estado reactivo en `flutter_riverpod` (`CartNotifier`).
+  * Operaciones: agregar, sumar, restar, eliminar ítem individual y vaciado completo.
+  * Cálculo dinámico de subtotales por producto y monto total general.
+  * *Nota del Sprint 5:* Carrito 100% local en memoria; el checkout y persistencia de pedidos se habilitan en Sprint 6.
+* **Pruebas Automatizadas**:
+  * Flutter: 15 tests unitarios cubriendo `AuthState`, `CartNotifier`, y serialización de modelos JSON.
+  * Backend: 15 tests unitarios xUnit cubriendo catálogo cliente, despacho y asignación.
+
+---
+
 ## Sprint 4 — Panel Web Blazor Server y Despacho Automático
 
 Panel web operativo funcional para administración interna, gestión de sucursales, cola de pedidos y despacho de entregas.
