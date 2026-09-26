@@ -13,3 +13,4 @@ grocery_app_mobile/build/
 grocery_app_mobile/.flutter-plugins
 grocery_app_mobile/.flutter-plugins-dependencies
 
+.aider*
