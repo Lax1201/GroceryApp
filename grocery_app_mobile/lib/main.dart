@@ -5,6 +5,8 @@ import 'features/auth/presentation/register_screen.dart';
 import 'features/auth/presentation/splash_screen.dart';
 import 'features/cart/presentation/cart_screen.dart';
 import 'features/catalog/presentation/catalog_screen.dart';
+import 'features/checkout/presentation/checkout_screen.dart';
+import 'features/direcciones/presentation/direcciones_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -76,6 +78,8 @@ class GroceryApp extends StatelessWidget {
         '/register': (context) => const RegisterScreen(),
         '/catalog': (context) => const CatalogScreen(),
         '/cart': (context) => const CartScreen(),
+        '/direcciones': (context) => const DireccionesScreen(),
+        '/checkout': (context) => const CheckoutScreen(),
       },
     );
   }

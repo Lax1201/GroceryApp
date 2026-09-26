@@ -87,25 +87,6 @@ class CartScreen extends ConsumerWidget {
             )
           : Column(
               children: [
-                // Banner informativo Sprint 5 (carrito local)
-                Container(
-                  width: double.infinity,
-                  color: Colors.blue.shade50,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Row(
-                    children: [
-                      Icon(Icons.info_outline, size: 18, color: Colors.blue.shade800),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Carrito local (Sprint 5). El checkout y pedidos estarán disponibles en el próximo sprint.',
-                          style: TextStyle(fontSize: 12, color: Colors.blue.shade900),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
                 // Lista de productos
                 Expanded(
                   child: ListView.separated(
@@ -272,17 +253,20 @@ class CartScreen extends ConsumerWidget {
                         SizedBox(
                           width: double.infinity,
                           height: 48,
-                          child: ElevatedButton(
-                            onPressed: null, // Deshabilitado en Sprint 5: sin checkout aún
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              Navigator.of(context).pushNamed('/checkout');
+                            },
                             style: ElevatedButton.styleFrom(
-                              disabledBackgroundColor: Colors.grey.shade300,
-                              disabledForegroundColor: Colors.grey.shade600,
+                              backgroundColor: Colors.green.shade700,
+                              foregroundColor: Colors.white,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10),
                               ),
                             ),
-                            child: const Text(
-                              'Checkout (Disponible en Sprint 6)',
+                            icon: const Icon(Icons.shopping_cart_checkout),
+                            label: const Text(
+                              'Proceder al Pago',
                               style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
                             ),
                           ),
