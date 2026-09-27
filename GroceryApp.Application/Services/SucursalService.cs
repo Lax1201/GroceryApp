@@ -22,6 +22,10 @@ public class SucursalService
     public async Task<Result<SucursalDto>> CrearAsync(
         string nombre, string direccion, TimeOnly horarioApertura, TimeOnly horarioCierre, CancellationToken ct = default)
     {
+        // Regla del dominio (Sucursal.EstaAbierta): un rango inválido dejaría la sucursal siempre cerrada.
+        if (horarioApertura >= horarioCierre)
+            return Result<SucursalDto>.Fallido("El horario de apertura debe ser anterior al horario de cierre.");
+
         var sucursal = new Sucursal
         {
             Nombre = nombre,

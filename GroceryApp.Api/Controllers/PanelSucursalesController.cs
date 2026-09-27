@@ -30,6 +30,9 @@ public class PanelSucursalesController : ControllerBase
         var resultado = await _sucursales.CrearAsync(
             request.Nombre, request.Direccion, request.HorarioApertura, request.HorarioCierre, ct);
 
+        if (!resultado.EsExitoso)
+            return Problem(detail: resultado.Error, statusCode: StatusCodes.Status400BadRequest);
+
         return CreatedAtAction(nameof(Listar), null, resultado.Valor);
     }
 }

@@ -53,6 +53,7 @@ public class JwtTokenGenerator : IJwtTokenGenerator
         var key = _config["Jwt:Key"]
             ?? throw new InvalidOperationException("Falta configurar Jwt:Key.");
         var issuer = _config["Jwt:Issuer"] ?? "GroceryApp";
+        var audience = _config["Jwt:Audience"] ?? "GroceryApp";
         // Evitar depender de métodos de extensión que puedan faltar en algunos entornos
         // Leemos como string y hacemos parse con valor por defecto
         var horasExpiracionStr = _config["Jwt:ExpiraHoras"];
@@ -66,6 +67,7 @@ public class JwtTokenGenerator : IJwtTokenGenerator
 
         var token = new JwtSecurityToken(
             issuer: issuer,
+            audience: audience,
             claims: claims,
             expires: DateTime.UtcNow.AddHours(horasExpiracion),
             signingCredentials: credenciales);

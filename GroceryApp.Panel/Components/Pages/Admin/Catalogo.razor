@@ -795,15 +795,34 @@
         var nombreArchivo = $"{productoId}-{Guid.NewGuid():N}{extension}";
         var rutaFisica = Path.Combine(carpetaUploads, nombreArchivo);
 
-        await using (var stream = new FileStream(rutaFisica, FileMode.Create))
+        // Validar la firma real (magic bytes): la extensión del nombre no es suficiente.
+        await using var origen = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+        var encabezado = await ValidadorImagen.LeerEncabezadoAsync(origen);
+        if (!ValidadorImagen.FirmaValida(encabezado, extension))
         {
-            await file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024).CopyToAsync(stream);
+            MensajeError = "El archivo no parece ser una imagen JPG, PNG o WEBP válida.";
+            return false;
+        }
+
+        try
+        {
+            await using (var stream = new FileStream(rutaFisica, FileMode.Create))
+            {
+                await stream.WriteAsync(encabezado.AsMemory());
+                await origen.CopyToAsync(stream);
+            }
+        }
+        catch
+        {
+            Archivos.EliminarSiExiste(rutaFisica);
+            throw;
         }
 
         var urlRelativa = $"/uploads/productos/{nombreArchivo}";
         var res = await CatalogoService.ActualizarFotoAsync(productoId, urlRelativa);
         if (!res.EsExitoso)
         {
+            Archivos.EliminarSiExiste(rutaFisica);
             MensajeError = res.Error;
             return false;
         }

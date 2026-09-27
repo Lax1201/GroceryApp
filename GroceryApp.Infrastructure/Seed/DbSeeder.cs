@@ -7,10 +7,12 @@ using Microsoft.EntityFrameworkCore;
 namespace GroceryApp.Infrastructure.Seed;
 
 /// <summary>
-/// Seed mínimo de Sprint 0/1/2. Llamar desde Program.cs después de aplicar migraciones:
-///   await DbSeeder.SeedAsync(dbContext, passwordHasher);
-/// El catálogo de productos de prueba se siembra aparte con SeedProductosDesarrolloAsync,
-/// que Program.cs invoca únicamente cuando el entorno es Development.
+/// Seed base para todos los entornos: zonas, categorías y sucursal principal.
+/// Llamar desde Program.cs después de aplicar migraciones:
+///   await DbSeeder.SeedAsync(dbContext);
+/// Las cuentas de empleado de prueba viven en SeedEmpleadosDesarrolloAsync y el
+/// catálogo de productos en SeedProductosDesarrolloAsync: Program.cs invoca ambos
+/// únicamente cuando el entorno es Development.
 /// </summary>
 public static class DbSeeder
 {
@@ -21,9 +23,7 @@ public static class DbSeeder
         "-86.1742236 11.8370478, -86.1852395 11.8547536, -86.1900031 11.8607548, " +
         "-86.2019052 11.8597941, -86.2061965 11.8530883))";
 
-    public static async Task SeedAsync(
-        GroceryAppDbContext db,
-        PasswordHasher<Empleado> empleadoHasher)
+    public static async Task SeedAsync(GroceryAppDbContext db)
     {
         // --- Zonas: upsert por nombre, así el polígono se actualiza aunque la zona ya exista ---
         var cascoUrbano = await db.Zonas.FirstOrDefaultAsync(z => z.Nombre == "Casco urbano");
@@ -81,9 +81,20 @@ public static class DbSeeder
                 HorarioApertura = new TimeOnly(7, 0),
                 HorarioCierre = new TimeOnly(20, 0)
             });
-            await db.SaveChangesAsync();
         }
 
+        await db.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Cuentas de empleado de prueba (admin, operador, repartidor1) con contraseñas conocidas.
+    /// NO debe invocarse fuera de Development: Program.cs lo condiciona a
+    /// app.Environment.IsDevelopment(), igual que el catálogo de productos de prueba.
+    /// </summary>
+    public static async Task SeedEmpleadosDesarrolloAsync(
+        GroceryAppDbContext db,
+        PasswordHasher<Empleado> empleadoHasher)
+    {
         var sucursalPrincipal = await db.Sucursales.FirstOrDefaultAsync();
 
         if (!db.Empleados.Any(e => e.Usuario == "admin"))

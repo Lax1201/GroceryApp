@@ -247,9 +247,11 @@
     private string? MensajeExito;
     private string? MensajeError;
 
+    // Fail-closed: un EmpleadoSucursal sin sucursal válida queda con scope -1 (no ve
+    // ninguna sucursal), igual que la defensa de la API. Admin conserva visión global.
     private int? ScopeActual => EsAdmin
         ? (SucursalFiltroId > 0 ? SucursalFiltroId : null)
-        : SucursalIdEmpleado;
+        : (SucursalIdEmpleado ?? -1);
 
     private List<PedidoPanelDto> PedidosFiltrados => Pedidos
         .Where(p => EstadoFiltro == null || p.Estado == EstadoFiltro)
@@ -298,6 +300,15 @@
     {
         Cargando = true;
         MensajeError = null;
+
+        if (!EsAdmin && SucursalIdEmpleado is null)
+        {
+            Pedidos = new();
+            MensajeError = "Tu usuario no tiene una sucursal válida asignada. No se muestran pedidos.";
+            Cargando = false;
+            return;
+        }
+
         try
         {
             Pedidos = await PedidoService.ListarColaPanelAsync(ScopeActual, null);

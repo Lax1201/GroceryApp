@@ -1,4 +1,5 @@
 using System.Text;
+using System.Threading.RateLimiting;
 using Asp.Versioning;
 using GroceryApp.Application.Common;
 using GroceryApp.Application.Security;
@@ -17,8 +18,13 @@ using Microsoft.IdentityModel.Tokens;
 var builder = WebApplication.CreateBuilder(args);
 
 // --- Base de datos ---
+// En Development se aceptan los placeholders de appsettings.json; en cualquier otro
+// entorno la configuración debe provenir de variables de entorno/configuración externa.
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+ConfiguracionSegura.ValidarCadenaConexion(connectionString, builder.Environment.IsDevelopment());
+
 builder.Services.AddDbContext<GroceryAppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(connectionString));
 
 // --- Hashing de contraseñas (Identity liviano: solo PasswordHasher<T>, sin UserManager/SignInManager) ---
 // Cliente y Empleado son dos tipos de principal distintos, cada uno con su propio hasher.
@@ -47,7 +53,10 @@ builder.Services.AddScoped<PedidoService>();
 // --- JWT ---
 var jwtKey = builder.Configuration["Jwt:Key"]
     ?? throw new InvalidOperationException("Falta configurar Jwt:Key en appsettings o variables de entorno.");
+ConfiguracionSegura.ValidarClaveJwt(jwtKey, builder.Environment.IsDevelopment());
+
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "GroceryApp";
+var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "GroceryApp";
 
 builder.Services.AddAuthentication(options =>
     {
@@ -59,10 +68,11 @@ builder.Services.AddAuthentication(options =>
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
-            ValidateAudience = false,
+            ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
             ValidIssuer = jwtIssuer,
+            ValidAudience = jwtAudience,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
         };
     });
@@ -116,15 +126,22 @@ builder.Services.AddSwaggerGen(options =>
 // --- Manejo global de errores: toda excepción no controlada devuelve un ProblemDetails consistente ---
 builder.Services.AddProblemDetails();
 
-// --- Rate limiting básico para /auth/login (Fase 4: obligatorio, no opcional) ---
+// --- Rate limiting básico para /auth (Fase 4: obligatorio, no opcional) ---
+// Particionado por IP: el límite es por cliente, no global, para no bloquear
+// a todos los usuarios cuando alguien intenta fuerza bruta.
 builder.Services.AddRateLimiter(options =>
 {
-    options.AddFixedWindowLimiter("LoginPolicy", opt =>
-    {
-        opt.PermitLimit = 5;
-        opt.Window = TimeSpan.FromMinutes(1);
-        opt.QueueLimit = 0;
-    });
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    options.AddPolicy("LoginPolicy", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "desconocido",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            }));
 });
 
 var app = builder.Build();
@@ -133,13 +150,16 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<GroceryAppDbContext>();
-    var empleadoHasher = scope.ServiceProvider.GetRequiredService<PasswordHasher<Empleado>>();
     await db.Database.MigrateAsync();
-    await DbSeeder.SeedAsync(db, empleadoHasher);
 
-    // Catálogo de productos de prueba: SOLO en Development.
+    // Datos base (zonas, categorías, sucursal principal): todos los entornos.
+    await DbSeeder.SeedAsync(db);
+
+    // Cuentas de empleado de prueba y catálogo de productos: SOLO en Development.
     if (app.Environment.IsDevelopment())
     {
+        var empleadoHasher = scope.ServiceProvider.GetRequiredService<PasswordHasher<Empleado>>();
+        await DbSeeder.SeedEmpleadosDesarrolloAsync(db, empleadoHasher);
         await DbSeeder.SeedProductosDesarrolloAsync(db);
     }
 }

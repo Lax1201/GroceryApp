@@ -103,16 +103,10 @@ public class EntregaService
     }
 
     /// <summary>Lista los repartidores activos de una sucursal para la asignación manual de respaldo.</summary>
-    public async Task<List<RepartidorDto>> ListarRepartidoresPorSucursalAsync(int? sucursalId, CancellationToken ct = default)
+    public async Task<List<RepartidorDto>> ListarRepartidoresPorSucursalAsync(int sucursalId, CancellationToken ct = default)
     {
-        var query = _db.Empleados
-            .Where(e => e.Rol == RolEmpleado.Repartidor)
-            .AsQueryable();
-
-        if (sucursalId.HasValue)
-            query = query.Where(e => e.SucursalId == sucursalId.Value);
-
-        return await query
+        return await _db.Empleados
+            .Where(e => e.Rol == RolEmpleado.Repartidor && e.SucursalId == sucursalId)
             .OrderBy(e => e.Nombre)
             .Select(e => new RepartidorDto(e.Id, e.Nombre, e.Usuario, e.SucursalId))
             .ToListAsync(ct);

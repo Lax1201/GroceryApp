@@ -1,5 +1,6 @@
 using Asp.Versioning;
 using GroceryApp.Api.Contracts;
+using GroceryApp.Application.Common;
 using GroceryApp.Application.Dtos;
 using GroceryApp.Application.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -72,21 +73,39 @@ public class PanelProductosController : ControllerBase
         if (!ExtensionesPermitidas.Contains(extension))
             return Problem(detail: "Solo se permiten imágenes JPG, PNG o WEBP.", statusCode: StatusCodes.Status400BadRequest);
 
+        // Validar la firma real (magic bytes): la extensión del nombre no es suficiente.
+        await using var origen = archivo.OpenReadStream();
+        var encabezado = await ValidadorImagen.LeerEncabezadoAsync(origen, ct);
+        if (!ValidadorImagen.FirmaValida(encabezado, extension))
+            return Problem(detail: "El archivo no parece ser una imagen JPG, PNG o WEBP válida.", statusCode: StatusCodes.Status400BadRequest);
+
         var carpeta = Path.Combine(_env.WebRootPath, "uploads", "productos");
         Directory.CreateDirectory(carpeta);
 
         var nombreArchivo = $"{id}-{Guid.NewGuid():N}{extension}";
         var rutaFisica = Path.Combine(carpeta, nombreArchivo);
 
-        await using (var stream = new FileStream(rutaFisica, FileMode.Create))
+        try
         {
-            await archivo.CopyToAsync(stream, ct);
+            await using (var stream = new FileStream(rutaFisica, FileMode.Create))
+            {
+                await stream.WriteAsync(encabezado.AsMemory(), ct);
+                await origen.CopyToAsync(stream, ct);
+            }
+        }
+        catch
+        {
+            Archivos.EliminarSiExiste(rutaFisica);
+            throw;
         }
 
         var urlPublica = $"/uploads/productos/{nombreArchivo}";
         var resultado = await _catalogo.ActualizarFotoAsync(id, urlPublica, ct);
         if (!resultado.EsExitoso)
+        {
+            Archivos.EliminarSiExiste(rutaFisica);
             return Problem(detail: resultado.Error, statusCode: StatusCodes.Status400BadRequest);
+        }
 
         return Ok(new { fotoUrl = urlPublica });
     }
