@@ -75,14 +75,17 @@ Cuando una decisión no esté definida:
 
 # 4. Estado actual del proyecto
 
-Estado al cierre de Sprint 4:
+Estado al cierre de Sprint 7:
 
 - Sprint 0: completado.
 - Sprint 1: completado.
 - Sprint 2: completado.
 - Sprint 3: completado.
 - Sprint 4: completado.
-- Sprints 5–8: pendientes.
+- Sprint 5: completado.
+- Sprint 6: completado.
+- Sprint 7: completado.
+- Sprint 8: pendiente (siguiente según la hoja de ruta).
 
 El backend correspondiente a los Sprints 0–3 se considera funcional y debe tratarse como código existente que debe preservarse.
 
@@ -105,21 +108,25 @@ No realizar modificaciones de backend únicamente para "refactorizar", "moderniz
 
 El proyecto se encuentra en:
 
-## Sprint 4 — Panel Web Blazor Server
+## Sprint 8 — Integración real + hardening
 
-El objetivo es construir un panel operativo funcional para:
+El objetivo es la prueba end-to-end real, rate limiting, corrección de bugs y dejar el MVP listo para clientes reales.
 
-- Admin;
-- EmpleadoSucursal;
-- Repartidor.
+Los Sprints 0–7 ya están completados:
+
+- **Sprints 0–3:** backend (fundación, autenticación, catálogo y zonas, pedidos y entregas).
+- **Sprint 4:** panel web Blazor Server con despacho automático.
+- **Sprint 5:** Flutter base + catálogo cliente (auth, catálogo, carrito local).
+- **Sprint 6:** Flutter direcciones + checkout (mapa con pin, creación de pedidos).
+- **Sprint 7:** Flutter seguimiento + historial + perfil.
 
 El cliente NO utiliza el Panel.
 
-El cliente utilizará posteriormente la aplicación Flutter.
+El cliente utiliza la aplicación Flutter.
 
-El entregable del Sprint 4 es:
+El entregable del Sprint 8 es:
 
-> Login por rol, catálogo, cola de pedidos y vista de entregas — panel operativo 100% usable.
+> Prueba end-to-end real, rate limiting, corrección de bugs, MVP listo para clientes reales.
 
 ---
 
@@ -911,13 +918,15 @@ Sprint 1 — Autenticación                  COMPLETADO
 Sprint 2 — Catálogo y zonas                COMPLETADO
 Sprint 3 — Pedidos y entregas              COMPLETADO
 Sprint 4 — Panel Blazor y Despacho         COMPLETADO
-Sprint 5 — Flutter: base y catálogo       SIGUIENTE
-Sprint 6 — Flutter: direcciones/checkout  PENDIENTE
-Sprint 7 — Flutter: seguimiento/historial PENDIENTE
-Sprint 8 — Integración y hardening        PENDIENTE
+Sprint 5 — Flutter: base y catálogo       COMPLETADO
+Sprint 6 — Flutter: direcciones/checkout  COMPLETADO
+Sprint 7 — Flutter: seguimiento/historial COMPLETADO
+Sprint 8 — Integración y hardening        SIGUIENTE
 ```
 
 El agente debe trabajar en el sprint actual antes de avanzar al siguiente, salvo que exista una dependencia técnica claramente justificada.
+
+La fuente de verdad del plan de sprints es `hoja-de-ruta-app-abarrotes.md`. Este bloque refleja únicamente el estado de avance.
 
 ---
 
