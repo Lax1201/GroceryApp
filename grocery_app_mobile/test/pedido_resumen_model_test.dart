@@ -30,69 +30,72 @@ void main() {
     });
 
     test('estadoLegible translates technical states', () {
-      const pendiente = PedidoResumenModel(
+      final fecha = DateTime(2026, 9, 25);
+      final pendiente = PedidoResumenModel(
         id: 1,
         estado: 'Pendiente',
         total: 0,
-        fechaCreacion: null,
+        fechaCreacion: fecha,
         clienteNombre: '',
       );
       expect(pendiente.estadoLegible, 'Pendiente');
 
-      const enPreparacion = PedidoResumenModel(
+      final enPreparacion = PedidoResumenModel(
         id: 1,
         estado: 'EnPreparacion',
         total: 0,
-        fechaCreacion: null,
+        fechaCreacion: fecha,
         clienteNombre: '',
       );
       expect(enPreparacion.estadoLegible, 'En preparación');
 
-      const noEntregado = PedidoResumenModel(
+      final noEntregado = PedidoResumenModel(
         id: 1,
         estado: 'NoEntregado',
         total: 0,
-        fechaCreacion: null,
+        fechaCreacion: fecha,
         clienteNombre: '',
       );
       expect(noEntregado.estadoLegible, 'No entregado');
     });
 
     test('estaActivo returns true for active states', () {
-      const activo = PedidoResumenModel(
+      final fecha = DateTime(2026, 9, 25);
+      final activo = PedidoResumenModel(
         id: 1,
         estado: 'EnCamino',
         total: 0,
-        fechaCreacion: null,
+        fechaCreacion: fecha,
         clienteNombre: '',
       );
       expect(activo.estaActivo, true);
 
-      const finalizado = PedidoResumenModel(
+      final finalizado = PedidoResumenModel(
         id: 1,
         estado: 'Entregado',
         total: 0,
-        fechaCreacion: null,
+        fechaCreacion: fecha,
         clienteNombre: '',
       );
       expect(finalizado.estaActivo, false);
     });
 
     test('puedeCancelarse only for Pendiente and Confirmado', () {
-      const pendiente = PedidoResumenModel(
+      final fecha = DateTime(2026, 9, 25);
+      final pendiente = PedidoResumenModel(
         id: 1,
         estado: 'Pendiente',
         total: 0,
-        fechaCreacion: null,
+        fechaCreacion: fecha,
         clienteNombre: '',
       );
       expect(pendiente.puedeCancelarse, true);
 
-      const enPreparacion = PedidoResumenModel(
+      final enPreparacion = PedidoResumenModel(
         id: 1,
         estado: 'EnPreparacion',
         total: 0,
-        fechaCreacion: null,
+        fechaCreacion: fecha,
         clienteNombre: '',
       );
       expect(enPreparacion.puedeCancelarse, false);

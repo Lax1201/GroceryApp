@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/config/api_config.dart';
-import '../../auth/presentation/providers/auth_provider.dart';
 import '../../cart/presentation/providers/cart_provider.dart';
 import '../data/models/product_model.dart';
 import 'product_detail_screen.dart';
@@ -25,7 +24,6 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final authState = ref.watch(authProvider);
     final cartState = ref.watch(cartProvider);
     final categoriesAsync = ref.watch(categoriesProvider);
     final productsAsync = ref.watch(catalogProductsProvider);

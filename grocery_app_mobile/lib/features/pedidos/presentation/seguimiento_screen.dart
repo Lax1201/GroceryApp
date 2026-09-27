@@ -457,7 +457,7 @@ class _BadgeEstado extends StatelessWidget {
         style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.bold,
-          color: color.shade800,
+          color: color,
         ),
       ),
     );
