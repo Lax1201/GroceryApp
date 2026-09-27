@@ -3,14 +3,14 @@ using GroceryApp.Domain.Enums;
 using GroceryApp.Infrastructure.Data;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Hosting;
 
 namespace GroceryApp.Infrastructure.Seed;
 
 /// <summary>
 /// Seed mínimo de Sprint 0/1/2. Llamar desde Program.cs después de aplicar migraciones:
-///   await DbSeeder.SeedAsync(dbContext, passwordHasher, environment);
-/// En Development también siembra un catálogo de productos de prueba (idempotente).
+///   await DbSeeder.SeedAsync(dbContext, passwordHasher);
+/// El catálogo de productos de prueba se siembra aparte con SeedProductosDesarrolloAsync,
+/// que Program.cs invoca únicamente cuando el entorno es Development.
 /// </summary>
 public static class DbSeeder
 {
@@ -23,8 +23,7 @@ public static class DbSeeder
 
     public static async Task SeedAsync(
         GroceryAppDbContext db,
-        PasswordHasher<Empleado> empleadoHasher,
-        IHostEnvironment environment)
+        PasswordHasher<Empleado> empleadoHasher)
     {
         // --- Zonas: upsert por nombre, así el polígono se actualiza aunque la zona ya exista ---
         var cascoUrbano = await db.Zonas.FirstOrDefaultAsync(z => z.Nombre == "Casco urbano");
@@ -130,21 +129,22 @@ public static class DbSeeder
         }
 
         await db.SaveChangesAsync();
-
-        // --- Catálogo de productos de prueba: SOLO en Development ---
-        if (environment.IsDevelopment() && sucursalPrincipal != null)
-        {
-            await SeedProductosDesarrolloAsync(db, sucursalPrincipal.Id);
-        }
     }
 
     /// <summary>
     /// Siembra un catálogo pequeño y realista de productos de prueba para desarrollo.
     /// Idempotente: verifica por nombre de producto y por (ProductoId, SucursalId).
-    /// No se ejecuta en Production.
+    /// Program.cs debe invocarlo únicamente cuando el entorno es Development.
     /// </summary>
-    private static async Task SeedProductosDesarrolloAsync(GroceryAppDbContext db, int sucursalId)
+    public static async Task SeedProductosDesarrolloAsync(GroceryAppDbContext db)
     {
+        var sucursalPrincipal = await db.Sucursales.FirstOrDefaultAsync();
+        if (sucursalPrincipal is null)
+        {
+            return;
+        }
+
+        var sucursalId = sucursalPrincipal.Id;
         // (Nombre, Descripción, Categoría, Precio en C$)
         var catalogo = new (string Nombre, string Descripcion, string Categoria, decimal Precio)[]
         {
