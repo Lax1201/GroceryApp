@@ -135,7 +135,7 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<GroceryAppDbContext>();
     var empleadoHasher = scope.ServiceProvider.GetRequiredService<PasswordHasher<Empleado>>();
     await db.Database.MigrateAsync();
-    await DbSeeder.SeedAsync(db, empleadoHasher);
+    await DbSeeder.SeedAsync(db, empleadoHasher, app.Environment);
 }
 
 // El manejador de excepciones va primero: cualquier error más abajo en el pipeline
