@@ -2,9 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../cart/presentation/providers/cart_provider.dart';
 import '../../../direcciones/data/models/direccion_model.dart';
 import '../../../direcciones/presentation/providers/direcciones_provider.dart';
+import '../../../pedidos/data/pedidos_repository.dart';
 import '../../data/models/crear_pedido_request.dart';
 import '../../data/models/pedido_detalle_model.dart';
-import '../../data/pedidos_repository.dart';
 
 class CheckoutState {
   final bool enviando;
