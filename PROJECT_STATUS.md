@@ -1,14 +1,14 @@
 # GroceryApp — Estado del Proyecto (Project Status)
 
 **Fecha de corte:** Septiembre 2026  
-**Hito completado:** Sprint 5 — Aplicación Cliente en Flutter (Base y Catálogo)  
-**Próximo hito:** Sprint 6 — Aplicación Cliente en Flutter (Direcciones y Checkout)
+**Hito completado:** Sprint 7 — Flutter: seguimiento, historial y perfil  
+**Próximo hito:** Sprint 8 — Integración real y hardening
 
 ---
 
 ## 1. Resumen Ejecutivo del Estado
 
-El proyecto **GroceryApp** ha completado con éxito la fase fundacional del backend y su panel web de administración y operación interna. La plataforma cuenta con una API REST funcional, una base de datos relacional con migraciones activas en Entity Framework Core, un panel web administrativo e interactivo en Blazor Server con control de acceso por roles y sucursal, un motor de despacho con asignación automática de pedidos a repartidores desacoplado, y una suite de pruebas automatizadas con cobertura total de los escenarios críticos de despacho y concurrencia.
+El proyecto **GroceryApp** ha completado la fase fundacional del backend, el panel web de administración y operación interna, y la aplicación cliente Flutter completa (catálogo, carrito, direcciones, checkout, seguimiento, historial y perfil). La plataforma cuenta con una API REST funcional, una base de datos relacional con migraciones activas en Entity Framework Core, un panel web administrativo e interactivo en Blazor Server con control de acceso por roles y sucursal, un motor de despacho con asignación automática de pedidos a repartidores desacoplado, una app Android cliente con flujo de compra end-to-end, y una suite de pruebas automatizadas con cobertura de los escenarios críticos de despacho, concurrencia y serialización de modelos.
 
 ### Estado de los Sprints
 * **Sprint 0 — Fundación técnica:** COMPLETADO
@@ -17,8 +17,8 @@ El proyecto **GroceryApp** ha completado con éxito la fase fundacional del back
 * **Sprint 3 — Pedidos y entregas (Core Backend):** COMPLETADO
 * **Sprint 4 — Panel Web Blazor Server y Despacho Automático:** COMPLETADO
 * **Sprint 5 — Flutter: base y catálogo móvil:** COMPLETADO
-* **Sprint 6 — Flutter: direcciones y checkout:** PENDIENTE
-* **Sprint 7 — Flutter: seguimiento e historial:** PENDIENTE
+* **Sprint 6 — Flutter: direcciones y checkout:** COMPLETADO
+* **Sprint 7 — Flutter: seguimiento, historial y perfil:** COMPLETADO
 * **Sprint 8 — Integración final y hardening:** PENDIENTE
 
 ---
@@ -235,13 +235,118 @@ No se requieren migraciones adicionales para el catálogo público ni la aplicac
 
 ---
 
-## 12. Próximos Pasos (Sprint 6)
+## 12. Sprint 6 — Flutter: Direcciones y Checkout (COMPLETADO)
 
-1. **Gestión de direcciones de entrega en Flutter**:
-   * Listar direcciones del cliente guardadas.
-   * Formulario de creación/edición de direcciones.
-   * Validación de zona de cobertura antes de guardar o realizar pedido.
-2. **Flujo de Checkout**:
-   * Pantalla de confirmación de pedido con dirección seleccionada, método de pago en efectivo contra entrega y cálculo de tarifa de envío según zona.
-   * Envío del pedido mediante `POST /api/v1/pedidos`.
-   * Vaciado automático del carrito local tras creación exitosa.
+### Funcionalidades implementadas
+
+**Gestión de direcciones (`features/direcciones`):**
+* Listado de direcciones del cliente con pull-to-refresh.
+* Formulario de creación/edición con mapa interactivo (`flutter_map` + OpenStreetMap), pin seleccionable al tocar, botón de GPS para centrar en ubicación actual.
+* Campo de referencia obligatorio (máx. 300 caracteres).
+* Switch "dirección principal".
+* Eliminación con diálogo de confirmación.
+* Modo selección (`modoSeleccion: true`) para uso desde checkout.
+* Validación de cobertura delegada al backend: si el pin cae fuera de zona activa, el backend responde `422` y la app muestra el mensaje.
+
+**Checkout (`features/checkout`):**
+* Pantalla de confirmación con secciones: dirección de entrega, resumen de productos, método de pago (efectivo contra entrega), totales (subtotal + tarifa + total).
+* Selección de dirección desde `DireccionesScreen(modoSeleccion: true)`.
+* Envío del pedido vía `POST /api/v1/pedidos`.
+* Vaciado automático del carrito tras éxito.
+* Pantalla de confirmación post-creación (`PedidoConfirmadoScreen`) con número de pedido y desglose de totales.
+
+**Dependencias Flutter agregadas:**
+* `flutter_map: ^8.2.2` — mapa interactivo con tiles de OpenStreetMap.
+* `latlong2: ^0.9.1` — tipo `LatLng`.
+* `geolocator: ^14.0.2` — GPS.
+
+**Permisos Android agregados:**
+* `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`, `INTERNET`.
+
+**Backend:** cero cambios. Los endpoints `POST/GET/PUT/DELETE /api/v1/direcciones` y `POST /api/v1/pedidos` ya existían desde Sprint 2 y 3.
+
+---
+
+## 13. Sprint 7 — Flutter: Seguimiento, Historial y Perfil (COMPLETADO)
+
+### Funcionalidades implementadas
+
+**Historial de pedidos (`features/pedidos`):**
+* Lista de pedidos del cliente autenticado con estado, fecha y total.
+* Pull-to-refresh, estado vacío, estado de error con reintento.
+* Guard de autenticación: si no hay sesión, muestra pantalla de "Inicia sesión".
+* Los pedidos activos abren seguimiento; los finalizados abren detalle.
+
+**Seguimiento de pedido:**
+* Línea de tiempo visual del flujo `Pendiente → Confirmado → EnPreparacion → Listo → EnCamino → Entregado`.
+* Badge de estado con color por estado.
+* Polling automático cada 20 segundos mientras la pantalla está montada.
+* Botón de refresh manual.
+* Mensajes claros para estados finales (`NoEntregado`, `Cancelado`, `Rechazado`) — cumple criterio de aceptación de Fase 2.
+
+**Detalle de pedido pasado:**
+* Vista de solo lectura para pedidos finalizados.
+
+**Perfil (`features/perfil`):**
+* Encabezado con avatar y estado de sesión.
+* Accesos a "Mis Direcciones" e "Historial de Pedidos".
+* Cerrar sesión con diálogo de confirmación.
+
+**Modelo nuevo:**
+* `PedidoResumenModel` con `estadoLegible`, `estaActivo`, `puedeCancelarse`.
+
+**Backend:** cero cambios. Los endpoints `GET /api/v1/pedidos/historial`, `GET /api/v1/pedidos/{id}/seguimiento` y `GET /api/v1/pedidos/{id}` ya existían desde Sprint 3.
+
+---
+
+## 14. Consolidación de PedidosRepository
+
+Durante el cierre de Sprint 7 se consolidó la duplicación de `PedidosRepository`:
+
+* **Antes:** existían dos implementaciones — `features/checkout/data/pedidos_repository.dart` (Sprint 6) y `features/pedidos/data/pedidos_repository.dart` (Sprint 7).
+* **Después:** se eliminó el de checkout. `checkout_provider.dart` importa desde `features/pedidos/data/pedidos_repository.dart`.
+* **Motivo:** el repository de `features/pedidos` es superset (incluye `crear`, `obtener`, `seguimiento`, `historial`, `cancelar`).
+* **Sin cambios funcionales.**
+
+---
+
+## 15. Seed de Productos de Desarrollo
+
+Se extendió `DbSeeder` para sembrar un catálogo de productos de prueba:
+
+* **Ubicación:** `GroceryApp.Infrastructure/Seed/DbSeeder.cs`, método `SeedProductosDesarrolloAsync`.
+* **Invocación:** desde `Program.cs`, condicionado por `app.Environment.IsDevelopment()`.
+* **Contenido:** ~34 productos realistas de pulpería nicaragüense (granos básicos, lácteos, frutas y verduras, carnes, panadería, bebidas, limpieza, higiene personal, abarrotes generales) con precios en Córdobas.
+* **Asociación:** cada producto se asocia a la sucursal base mediante `ProductoSucursal` con `Precio > 0` y `StockDisponible = true`.
+* **Idempotencia:** verifica por nombre de producto (`FirstOrDefaultAsync(p => p.Nombre == ...)`) y por par `(ProductoId, SucursalId)` en `ProductoSucursal`. Ejecutar la API múltiples veces no duplica.
+* **Production:** no se siembra ningún producto.
+* **Sin migraciones nuevas:** no se modifican entidades ni esquema.
+
+**Nota importante:** un `Producto` no aparece en el catálogo público solo por existir. Se necesita también un registro en `ProductoSucursal` con `Precio > 0` y `StockDisponible = true` para la sucursal correspondiente.
+
+---
+
+## 16. Validaciones Actuales
+
+### Backend
+* `dotnet build GroceryApp.sln` → 0 errores / 0 warnings
+* `dotnet test GroceryApp.Tests/GroceryApp.Tests.csproj` → 15/15 tests superados
+
+### Flutter
+* `flutter analyze` → sin issues
+* `flutter test` → 27 tests superados
+* `flutter build apk --debug` → exitoso
+
+---
+
+## 17. Próximos Pasos (Sprint 8)
+
+Según `hoja-de-ruta-app-abarrotes.md`:
+
+> **Sprint 8 — Integración real + hardening**
+> Prueba end-to-end real, rate limiting, corrección de bugs, MVP listo para clientes reales.
+
+Pendientes de negocio que no bloquean el MVP:
+* Monto exacto de la cuota de envío para municipios aledaños.
+* Política definitiva ante acumulación de no-shows.
+* Meta numérica de pedidos/semana para el criterio de éxito.

@@ -1,155 +1,156 @@
 # GroceryApp
 
-## Sprint 5 — Aplicación Cliente en Flutter (Base y Catálogo)
+Plataforma propia de pedidos de abarrotes a domicilio para el casco urbano de Carazo, Nicaragua. No es un SaaS: es una cadena de tiendas con sucursales físicas reales que ofrece precios de mercado tradicional, pago contra entrega y catálogo orientado a la canasta básica.
 
-Aplicación móvil cliente para Android desarrollada en Flutter, con autenticación JWT, catálogo público categorizado, búsqueda en tiempo real, detalle de producto y carrito de compras local.
-
-### Novedades de Sprint 5
-* **Aplicación Móvil Flutter (`grocery_app_mobile`)**: Proyecto integrado con Flutter 3.47 / Dart 3.13, arquitectura limpia y componentes modulares.
-* **Autenticación Móvil**:
-  * Registro de nuevo cliente con validación telefónica (+505) y contraseña.
-  * Inicio de sesión JWT persistido de forma segura en `flutter_secure_storage`.
-  * Interceptor de red `Dio` con inyección transparente de encabezado `Authorization: Bearer <token>`.
-  * Restauración automática de sesión activa desde Splash Screen y Logout controlado.
-* **Catálogo Público y Búsqueda**:
-  * Consumo de `/api/v1/catalogo/categorias` y `/api/v1/catalogo/productos`.
-  * Navegación y exploración pública sin requerir login obligatorio inicial.
-  * Selector horizontal de categorías mediante `ChoiceChip` ('Todas' + categorías dinámicas).
-  * Barra de búsqueda reactiva con debounce y filtrado en servidor.
-  * Tarjetas de producto con precios en Córdobas (C$), indicador visual de stock/agotado y resolución de fotos relativas/absolutas.
-* **Detalle de Producto**:
-  * Vista individual con imagen ampliada, descripción, selector de cantidades (incremento/decremento) y adición al carrito con feedback visual (SnackBar).
-* **Carrito Local**:
-  * Gestor de estado reactivo en `flutter_riverpod` (`CartNotifier`).
-  * Operaciones: agregar, sumar, restar, eliminar ítem individual y vaciado completo.
-  * Cálculo dinámico de subtotales por producto y monto total general.
-  * *Nota del Sprint 5:* Carrito 100% local en memoria; el checkout y persistencia de pedidos se habilitan en Sprint 6.
-* **Pruebas Automatizadas**:
-  * Flutter: 15 tests unitarios cubriendo `AuthState`, `CartNotifier`, y serialización de modelos JSON.
-  * Backend: 15 tests unitarios xUnit cubriendo catálogo cliente, despacho y asignación.
+**Estado actual:** Sprints 0–7 completados. Sprint 8 (integración real y hardening) pendiente.
 
 ---
 
-## Sprint 4 — Panel Web Blazor Server y Despacho Automático
+## 1. Objetivo del negocio
 
-Panel web operativo funcional para administración interna, gestión de sucursales, cola de pedidos y despacho de entregas.
+Que una familia nicaragüense haga su mandado de abarrotes desde el celular, con precios y variedad de mercado tradicional, entregado a domicilio. El MVP arranca con **una sola sucursal** en el casco urbano de Carazo y está diseñado para escalar a más sucursales y ciudades.
 
-### Novedades de Sprint 4
-* **Panel Web Blazor Server (`GroceryApp.Panel`)**: Implementado en .NET 8 con modo interactivo de servidor (`InteractiveServerComponents`).
-* **Autenticación y Autorización por Cookies**: Circuito seguro con claims de rol (`Admin`, `EmpleadoSucursal`, `Repartidor`) y ámbito de sucursal (`sucursalId`). Redirección automática por rol tras el login.
-* **Módulos Operativos**:
-  * `/login`: Inicio de sesión seguro con hash PBKDF2 y logout controlado.
-  * `/admin/dashboard`: Métricas de negocio y supervisión rápida.
-  * `/admin/catalogo`: Listado, creación y edición de productos, categorías, subida de fotos a disco, precio y disponibilidad de stock por sucursal.
-  * `/admin/sucursales`: Supervisión de sucursales activas y horarios.
-  * `/sucursal/pedidos`: Cola operativa en tiempo real con filtros por estado, avance de pedidos y modal detallado con recálculo por faltantes.
-  * `/repartidor/entregas`: Módulo exclusivo del repartidor para gestionar sus entregas asignadas (`EnCamino`, `Entregado`, `NoEntregado`), con vista de supervisión de pool para administradores.
-* **Modelo de Despacho Automático Desacoplado**:
-  * Al pasar un pedido a `Listo`, se dispara automáticamente `EntregaService.AsignarAutomaticoAsync`.
-  * Algoritmo desacoplado mediante `IEstrategiaAsignacion` (implementación inicial: `EstrategiaAsignacionCargaSimple`).
-  * Asignación al repartidor de la misma sucursal con menor cantidad de entregas activas (`Asignado` o `EnCamino`).
-  * Los pedidos sin repartidor quedan en `Listo` (Pool de pendientes) y se reintentan automáticamente cuando un repartidor finaliza una entrega.
-  * El repartidor **NO** puede tomar pedidos manualmente del pool.
-* **Pruebas Automatizadas (`GroceryApp.Tests`)**: Suite de tests xUnit sobre SQLite in-memory que valida todo el flujo de despacho, aislamiento por sucursal, menor carga, histórico no activo y concurrencia por índice UNIQUE (9/9 pruebas exitosas).
+**Propuesta de valor:**
+- Precios de mercado tradicional, no premium.
+- Pago contra entrega — sin fricción de adopción digital.
+- Catálogo amplio orientado a canasta básica.
+
+**Fuera del MVP:** ERP, POS, compras, proveedores, contabilidad, facturación, transferencias entre sucursales, inventario avanzado, pagos digitales, app propia de repartidor.
 
 ---
 
-## Sprint 3 — Pedidos y Entregas
+## 2. Arquitectura general
 
-No hay cambios de esquema de base de datos — **no hace falta migración nueva**.
-
-### Cambio de diseño: transiciones de estado encapsuladas
-`Pedido` y `Entrega` ya no exponen `Estado` con setter público — ahora tienen métodos (`Confirmar()`, `MarcarListo()`, `MarcarEntregado()`, etc.) que validan el estado de origen y lanzan `DomainException` si la transición no es válida (ej. no se puede marcar "listo" un pedido que sigue "pendiente"). Esto cumple la mejora que habíamos dejado pendiente en la consolidación de Sprint 0. Cada servicio de `Application` atrapa esa excepción y la convierte en un `Result.Fallido(...)` — el dominio no conoce el patrón `Result`, mantiene cero dependencias externas.
-
-### Modelo de despacho
-*(Actualizado en Sprint 4)*: El modelo inicial de toma manual fue reemplazado por la **asignación automática por menor carga activa** desacoplada mediante `IEstrategiaAsignacion`. La asignación se dispara automáticamente cuando un pedido pasa a `Listo`. La concurrencia real la resuelve el índice único de `Entregas.PedidoId`.
-
-### Endpoints
-**Cliente** (`/api/v1/pedidos`):
-- `POST /api/v1/pedidos` — checkout. Valida catálogo, stock, que todos los productos sean de la misma sucursal, y horario de atención (bloqueo fuera de horario, Fase 1).
-- `GET /api/v1/pedidos/{id}` · `GET /api/v1/pedidos/historial` · `GET /api/v1/pedidos/{id}/seguimiento`
-- `PUT /api/v1/pedidos/{id}/cancelar` — solo si el pedido sigue en estado Pendiente (regla de Fase 1).
-
-**Empleado de sucursal / Admin** (`/api/v1/panel/pedidos`):
-- `GET /api/v1/panel/pedidos?estado=` — Admin ve todas las sucursales; EmpleadoSucursal solo la suya (vía claim `sucursalId` del JWT).
-- `PUT /{id}/confirmar` · `/rechazar` · `/iniciar-preparacion` · `/marcar-listo` (dispara la asignación automática).
-- `DELETE /{id}/items/{itemId}` — producto faltante al preparar: se quita y se recalcula el total.
-- `PUT /{id}/asignar-repartidor` — respaldo manual (supervisión o excepciones).
-
-**Repartidor** (`/api/v1/panel/entregas`):
-- `GET /mias` — sus entregas asignadas activas.
-- `PUT /{id}/en-camino` · `/entregado` · `/no-entregado` — finaliza la entrega, procesa pendientes del pool e incrementa `NoShowCount` si aplica.
-
-### Cómo probar de punta a punta
-1. Cliente: crear pedido con productos de Sprint 2 y una dirección con cobertura.
-2. Admin o EmpleadoSucursal (necesitás crear un empleado con rol `EmpleadoSucursal` directo en la base por ahora — no hay pantalla todavía): confirmar → iniciar preparación → marcar listo.
-3. Repartidor (mismo caso: crealo directo en la base con rol `Repartidor` y el `SucursalId` de tu sucursal): recibe asignación automática al marcar Listo → en camino → entregado.
-4. Confirmá en la tabla `Pedidos` que el `Estado` quedó en `Entregado` y coincide con el de `Entregas`.
-
----
-
-## Sprint 2 — Catálogo y Zonas
-
-### Endpoints nuevos
-- `GET /api/v1/catalogo/categorias` — público, sin auth.
-- `POST /api/v1/direcciones` · `GET /api/v1/direcciones` · `PUT /api/v1/direcciones/{id}` · `DELETE /api/v1/direcciones/{id}` — requieren rol `Cliente` (token de Sprint 1). Al crear/editar, el backend calcula la zona automáticamente a partir del pin (lat/long); si el punto no cae en ninguna zona activa, devuelve `422` con "fuera de cobertura por ahora".
-- `GET /api/v1/panel/sucursales` · `POST /api/v1/panel/sucursales` — requieren rol `Admin`.
-- `GET /api/v1/panel/productos/sucursal/{sucursalId}` · `POST /api/v1/panel/productos` · `PUT /api/v1/panel/productos/{id}` · `PUT /api/v1/panel/productos/{id}/sucursal/{sucursalId}` (precio/stock) · `POST /api/v1/panel/productos/{id}/foto` (sube archivo real) — requieren rol `Admin`.
-
-### El polígono del casco urbano
-
-Ya está cargado en `DbSeeder.cs` (dibujado en geojson.io). El seed hace *upsert*: si la zona "Casco urbano" ya existía en tu base sin polígono, se actualiza sola la próxima vez que corras la API — no hace falta borrar nada a mano.
-
-Si en el futuro necesitás redibujarlo (el área creció, cambiaron los límites, etc.), repetí el proceso en geojson.io y actualizá la constante `PoligonoCascoUrbano` en `DbSeeder.cs` — el upsert se encarga del resto.
-
-### Migración nueva requerida
-Este sprint agrega la columna `Zona.PoligonoWkt`:
-```bash
-cd GroceryApp.Api
-dotnet ef migrations add AgregarPoligonoAZona --project ../GroceryApp.Infrastructure --startup-project .
+```text
+Flutter (Android)          Blazor Server (Panel)
+        │                          │
+        └──────────┬───────────────┘
+                   ▼
+        ASP.NET Core Web API
+                   │
+        ┌──────────┼──────────┐
+        ▼          ▼          ▼
+   Application   Domain   Infrastructure
+                              │
+                              ▼
+                          SQL Server
 ```
 
-### Fotos de productos
-Se guardan como archivos reales en `GroceryApp.Api/wwwroot/uploads/productos/`, servidos como estáticos (`app.UseStaticFiles()`). La carpeta está versionada vacía (`.gitkeep`); las imágenes subidas quedan ignoradas por git — en el VPS vas a necesitar backupear esa carpeta aparte si querés conservar las fotos (no viven en la base de datos, solo la URL).
-
-### Nota de diseño: Admin de prueba y Sucursal
-Para probar `POST /api/v1/panel/productos` necesitás primero crear una Sucursal real con `POST /api/v1/panel/sucursales` (usando el token del Admin de prueba de Sprint 1) y anotar el `id` que te devuelve — lo vas a necesitar en el `sucursalId` de cada producto.
+Una sola API sirve a la app Android y al panel web. Los roles (`Cliente`, `EmpleadoSucursal`, `Repartidor`, `Admin`) se resuelven vía claims en el JWT (API) o cookies (Panel).
 
 ---
 
-## Sprint 1 — Autenticación
-- **Endpoints** (`/api/v1/auth/...`): `cliente/registro`, `cliente/login`, `empleado/login`.
-- **No hay registro de empleado**: esas cuentas las crea un Admin desde el panel (Sprint 4). Admin de prueba sembrado: usuario `admin`, password `CambiarEstaClave123!` — **cambiala en cuanto exista una pantalla real de gestión de empleados**.
-- **Recuperación de contraseña**: pospuesta a un sprint futuro (decisión tomada explícitamente).
-- `GroceryApp.Application/Common/IAppDbContext.cs` — abstracción mínima para que `Application` no dependa de `Infrastructure`.
-- `GroceryApp.Infrastructure/Security/JwtTokenGenerator.cs` — genera el JWT con claims de rol y `sucursalId` si aplica.
+## 3. Stack tecnológico
 
+| Componente | Tecnología |
+|---|---|
+| Backend | ASP.NET Core Web API (.NET 8) |
+| Base de datos | SQL Server |
+| ORM | Entity Framework Core 8 (Code-First) |
+| Autenticación API | JWT Bearer (HMAC-SHA256) |
+| Autenticación Panel | Cookies + circuito Blazor Server |
+| Panel web | Blazor Server (.NET 8 InteractiveServer) |
+| App móvil | Flutter 3.47 / Dart 3.13 (Android) |
+| Estado Flutter | flutter_riverpod |
+| HTTP Flutter | Dio + AuthInterceptor |
+| Almacenamiento seguro | flutter_secure_storage |
+| Mapas Flutter | flutter_map (OpenStreetMap) + latlong2 + geolocator |
+| Pruebas backend | xUnit + SQLite in-memory |
+| Pruebas Flutter | flutter_test |
 
+---
 
-## Sprint 0 — Fundación técnica y consolidación
+## 4. Estructura de la solución
 
-Estructura base según Fase 4/5 de la hoja de ruta, **más la ronda de consolidación técnica** (Application layer, enums legibles, manejo de errores, versionado de API).
-
-### Qué se consolidó
-- **`GroceryApp.Application`**: patrón `Result`/`Result<T>` + `IAppDbContext`.
-- **Enums guardados como texto** en SQL Server (`Rol`, `Estado` de Pedido, `Estado` de Entrega, `Tipo` de Zona).
-- **Autenticación**: *Identity liviano* — `PasswordHasher<Cliente>` y `PasswordHasher<Empleado>`, sin el framework completo de ASP.NET Core Identity.
-- **Manejo global de errores**: `AddProblemDetails()` + `UseExceptionHandler()`.
-- **Versionado de API**: `/api/v1/...` vía `Asp.Versioning.Mvc`.
-- **Cascadas de borrado corregidas**: `Pedido→Cliente`, `Pedido→Direccion`, `PedidoItem→Producto` y `Direccion→Zona` son `Restrict` (no cascada) — evita el error de SQL Server por múltiples caminos de cascada hacia `Pedidos`, y protege el historial de pedidos de borrados accidentales en cascada.
-
-## 1. Requisitos
-- .NET 8 SDK instalado.
-- SQL Server (local, Docker, o el que uses en desarrollo).
-- Herramienta EF Core: `dotnet tool install --global dotnet-ef` (si no la tenés).
-
-## 2. Restaurar y compilar
-```bash
-dotnet restore
-dotnet build
+```text
+GroceryApp.sln
+├── GroceryApp.Domain          → entidades, enums, excepciones puras de dominio
+├── GroceryApp.Application     → servicios, DTOs, interfaces, reglas de negocio, despacho
+├── GroceryApp.Infrastructure  → EF Core DbContext, migraciones, seed, JwtTokenGenerator
+├── GroceryApp.Api             → ASP.NET Core Web API, controllers, JWT, ProblemDetails
+├── GroceryApp.Panel           → Blazor Server (admin, sucursal, repartidor)
+├── GroceryApp.Tests           → xUnit + SQLite in-memory
+└── grocery_app_mobile/        → App Flutter cliente (Android)
 ```
 
-## 3. Configurar la cadena de conexión y el JWT
+---
+
+## 5. Backend (API)
+
+API REST versionada bajo `/api/v1`. Manejo global de errores con `ProblemDetails` (RFC 7807). Rate limiting en endpoints de autenticación.
+
+**Grupos funcionales de endpoints:**
+
+- **Autenticación** (`/api/v1/auth`): registro y login de cliente, login de empleado.
+- **Catálogo público** (`/api/v1/catalogo`): categorías, productos con filtros, detalle de producto. Sin autenticación.
+- **Direcciones** (`/api/v1/direcciones`): CRUD de direcciones del cliente. Rol `Cliente`. Cálculo automático de zona al guardar el pin.
+- **Pedidos** (`/api/v1/pedidos`): checkout, detalle, historial, seguimiento, cancelación. Rol `Cliente`.
+- **Panel** (`/api/v1/panel`): cola de pedidos, avance de estados, asignación de repartidor, entregas, productos, sucursales. Roles `Admin`, `EmpleadoSucursal`, `Repartidor` según endpoint.
+
+Ver `PROJECT_STATUS.md` sección 9 para el listado detallado de endpoints.
+
+---
+
+## 6. Panel Blazor
+
+Panel operativo interno para `Admin`, `EmpleadoSucursal` y `Repartidor`. El cliente **no** accede al panel.
+
+**Módulos:**
+- `/login` — autenticación por cookies con redirección por rol.
+- `/admin/dashboard` — métricas rápidas.
+- `/admin/catalogo` — CRUD de productos, categorías, precios y stock por sucursal, subida de fotos.
+- `/admin/sucursales` — supervisión de sucursales.
+- `/sucursal/pedidos` — cola de pedidos de la sucursal, avance de estados, modal de detalle con recálculo por faltantes.
+- `/repartidor/entregas` — entregas asignadas al repartidor autenticado.
+
+**Despacho automático:** al pasar un pedido a `Listo`, se dispara `EntregaService.AsignarAutomaticoAsync`, que asigna al repartidor de la misma sucursal con menor carga activa. Si no hay repartidor disponible, el pedido queda en `Listo` (Pool) y se reintenta cuando un repartidor finaliza una entrega. El repartidor **no** puede tomar pedidos manualmente.
+
+---
+
+## 7. Aplicación Flutter (cliente)
+
+App Android en `grocery_app_mobile/`. Arquitectura modular por features.
+
+**Funcionalidades implementadas:**
+- **Autenticación:** registro con validación telefónica (+505), login JWT, persistencia segura del token, restauración automática de sesión, logout.
+- **Catálogo:** exploración pública, filtro por categoría, búsqueda reactiva, detalle de producto, imágenes servidas desde backend.
+- **Carrito:** gestión local en memoria con Riverpod, cálculo reactivo de subtotales y total.
+- **Direcciones:** CRUD con mapa interactivo (OpenStreetMap), pin seleccionable, GPS, referencia obligatoria, cálculo de zona y tarifa por el backend.
+- **Checkout:** selección de dirección, resumen de productos, método de pago (efectivo contra entrega), tarifa de envío visible, confirmación contra `POST /api/v1/pedidos`, vaciado del carrito tras éxito.
+- **Confirmación de pedido:** pantalla post-creación con número de pedido y totales.
+- **Seguimiento:** línea de tiempo visual del estado del pedido con polling cada 20 segundos.
+- **Historial:** lista de pedidos del cliente con acceso a seguimiento (activos) o detalle (finalizados).
+- **Perfil:** accesos a direcciones, historial y cerrar sesión.
+
+**Funcionalidades NO implementadas todavía:**
+- Recuperación de contraseña.
+- Notificaciones push.
+- Seguimiento en tiempo real vía WebSockets/SignalR (se usa polling).
+- App separada para repartidores (no está en el MVP).
+
+---
+
+## 8. Roles y permisos
+
+| Rol | Acceso | Funciones |
+|---|---|---|
+| `Cliente` | App Flutter | Comprar, ver historial, seguir pedido, gestionar direcciones |
+| `EmpleadoSucursal` | Panel Blazor | Ver/aceptar/rechazar pedidos de su sucursal, cambiar estado, marcar listo |
+| `Repartidor` | Panel Blazor | Ver entregas asignadas, marcar en camino / entregado / no entregado |
+| `Admin` | Panel Blazor | Gestión de catálogo, sucursales, supervisión global de pedidos |
+
+---
+
+## 9. Desarrollo local
+
+### Requisitos
+- .NET 8 SDK
+- SQL Server (local, Docker, o remoto)
+- Flutter 3.47 / Dart 3.13 (para la app móvil)
+- `dotnet-ef` (opcional, para crear migraciones): `dotnet tool install --global dotnet-ef`
+
+### Configurar cadena de conexión y JWT
+
 ```bash
 cd GroceryApp.Api
 dotnet user-secrets init
@@ -157,37 +158,118 @@ dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Server=localhost;
 dotnet user-secrets set "Jwt:Key" "una-clave-larga-y-secreta-de-al-menos-32-caracteres"
 ```
 
-## 4. Migraciones
-Ya existe `InitialCreate` en `GroceryApp.Infrastructure/Migrations`. Se aplica sola al arrancar la API (`Program.cs` corre `db.Database.MigrateAsync()`).
+### Migraciones
 
-## 5. Correr la API
+Las migraciones se aplican automáticamente al arrancar la API (`Program.cs` ejecuta `db.Database.MigrateAsync()`). Migraciones existentes:
+1. `20260725212427_InitialCreate`
+2. `20260726171708_AgregarPoligonoAZona`
+
+Para crear una nueva migración:
+```bash
+cd GroceryApp.Api
+dotnet ef migrations add NombreMigracion --project ../GroceryApp.Infrastructure --startup-project .
+```
+
+### Seed de datos
+
+`DbSeeder.SeedAsync` se ejecuta al arrancar la API. Siembra de forma idempotente:
+- **Zonas:** "Casco urbano" con polígono WKT de Carazo.
+- **Categorías:** catálogo base de categorías de abarrotes.
+- **Sucursal base:** una sucursal de desarrollo.
+- **Empleados de prueba:** `admin`, `operador`, `repartidor1`.
+
+**Productos de prueba (solo Development):** `DbSeeder.SeedProductosDesarrolloAsync` siembra ~34 productos realistas de pulpería nicaragüense con `ProductoSucursal` asociado a la sucursal base. Se invoca únicamente cuando `app.Environment.IsDevelopment()` desde `Program.cs`. En Production no se siembran productos.
+
+**Importante:** un `Producto` no aparece en el catálogo público solo por existir. Se necesita también un registro en `ProductoSucursal` con `Precio > 0` y `StockDisponible = true` para la sucursal correspondiente.
+
+### Correr la API
+
 ```bash
 dotnet run --project GroceryApp.Api
 ```
 
-## 6. Pendiente para cerrar Sprint 0 (fuera del alcance de este código)
-- **VPS con HTTPS**: Nginx como reverse proxy hacia Kestrel + Let's Encrypt. Si es Windows: IIS + ASP.NET Core Hosting Bundle + win-acme.
-- Definir el monto real de `TarifaEnvio` para "Municipios aledaños" antes de activarla.
-- Crear el primer registro real en `Sucursales` con el horario real.
+### Correr el Panel Blazor
 
-## Recomendaciones de la consolidación que quedaron pendientes (no bloquean Sprint 1/2)
-- CHECK constraint para `Empleado.SucursalId` NULL solo si `Rol=Admin`.
-- Mover la configuración Fluent API del `DbContext` a clases `IEntityTypeConfiguration<T>` por entidad.
-- Health checks (`/health`).
-- Encapsular las transiciones de estado de `Pedido` en métodos en vez de setter directo (se evalúa en Sprint 3).
-
-## Qué sigue
-La aplicación cliente en Flutter (Sprints 5-7) y la integración final y hardening (Sprint 8).
-
-## Estructura de la solución
+```bash
+dotnet run --project GroceryApp.Panel
 ```
-GroceryApp.sln
-GroceryApp.Domain/           → entidades y enums, sin dependencias externas
-GroceryApp.Application/      → casos de uso, Result pattern, IAppDbContext, servicios, despacho
-GroceryApp.Infrastructure/   → DbContext, configuración EF Core, migraciones, seed, JwtTokenGenerator
-GroceryApp.Api/              → ASP.NET Core Web API, controllers, JWT, versionado, ProblemDetails
-GroceryApp.Panel/            → Blazor Server (.NET 8), Auth cookies, componentes interactivos
-GroceryApp.Tests/            → Suite de pruebas automatizadas xUnit con SQLite in-memory
+
+### Correr la app Flutter
+
+```bash
+cd grocery_app_mobile
+flutter pub get
+flutter run
 ```
+
+---
+
+## 10. Comandos principales
+
+### Backend
+
+```bash
+dotnet build GroceryApp.sln
+dotnet test GroceryApp.Tests/GroceryApp.Tests.csproj
+dotnet run --project GroceryApp.Api
+dotnet run --project GroceryApp.Panel
+```
+
+### Flutter
+
+```bash
+cd grocery_app_mobile
+flutter pub get
+flutter analyze
+flutter test
+flutter build apk --debug
+flutter run
+```
+
+---
+
+## 11. Estado actual del proyecto
+
+| Sprint | Foco | Estado |
+|---|---|---|
+| 0 | Fundación técnica | COMPLETADO |
+| 1 | Backend: Autenticación | COMPLETADO |
+| 2 | Backend: Catálogo y Zonas | COMPLETADO |
+| 3 | Backend: Pedidos y Entregas | COMPLETADO |
+| 4 | Panel Blazor + Despacho automático | COMPLETADO |
+| 5 | Flutter: base + catálogo cliente | COMPLETADO |
+| 6 | Flutter: direcciones + checkout | COMPLETADO |
+| 7 | Flutter: seguimiento + historial + perfil | COMPLETADO |
+| 8 | Integración real + hardening | PENDIENTE |
+
+**Validaciones conocidas:**
+- `dotnet build GroceryApp.sln` → 0 errores / 0 warnings
+- `dotnet test` → 15/15 tests
+- `flutter analyze` → sin issues
+- `flutter test` → 27 tests
+- `flutter build apk --debug` → exitoso
+
+---
+
+## 12. Próximos pasos (Sprint 8)
+
+Según `hoja-de-ruta-app-abarrotes.md`:
+
+> **Sprint 8 — Integración real + hardening**
+> Prueba end-to-end real, rate limiting, corrección de bugs, MVP listo para clientes reales.
+
+Pendientes de negocio que no bloquean el MVP:
+- Monto exacto de la cuota de envío para municipios aledaños.
+- Política definitiva ante acumulación de no-shows.
+- Meta numérica de pedidos/semana para el criterio de éxito.
+
+---
+
+## 13. Documentación adicional
+
+- `hoja-de-ruta-app-abarrotes.md` — Fuente única de verdad del roadmap.
+- `AGENTS.md` — Reglas permanentes de arquitectura y desarrollo.
+- `PROJECT_STATUS.md` — Estado detallado del proyecto.
+- `AI_HANDOFF.md` — Contexto para el siguiente agente de desarrollo.
 
 
