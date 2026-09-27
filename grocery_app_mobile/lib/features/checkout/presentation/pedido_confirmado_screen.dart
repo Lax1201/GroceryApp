@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../pedidos/presentation/seguimiento_screen.dart';
 import '../data/models/pedido_detalle_model.dart';
 
 class PedidoConfirmadoScreen extends StatelessWidget {
@@ -108,6 +109,22 @@ class PedidoConfirmadoScreen extends StatelessWidget {
                 width: double.infinity,
                 height: 48,
                 child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).pushReplacement(
+                      MaterialPageRoute(
+                        builder: (_) => SeguimientoScreen(pedidoId: pedido.id),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.local_shipping_outlined),
+                  label: const Text('Ver Seguimiento'),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: OutlinedButton.icon(
                   onPressed: () {
                     Navigator.of(context).pushNamedAndRemoveUntil(
                       '/catalog',

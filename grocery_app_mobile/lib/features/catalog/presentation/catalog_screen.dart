@@ -53,45 +53,14 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
               Navigator.of(context).pushNamed('/cart');
             },
           ),
-          // Botón de sesión
-          if (authState.status == AuthStatus.authenticated)
-            IconButton(
-              icon: const Icon(Icons.logout),
-              tooltip: 'Cerrar Sesión',
-              onPressed: () async {
-                final confirm = await showDialog<bool>(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    title: const Text('Cerrar sesión'),
-                    content: const Text('¿Estás seguro de que deseas salir?'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.of(ctx).pop(false),
-                        child: const Text('Cancelar'),
-                      ),
-                      TextButton(
-                        onPressed: () => Navigator.of(ctx).pop(true),
-                        child: const Text('Salir', style: TextStyle(color: Colors.red)),
-                      ),
-                    ],
-                  ),
-                );
-                if (confirm == true) {
-                  await ref.read(authProvider.notifier).logout();
-                  if (context.mounted) {
-                    Navigator.of(context).pushReplacementNamed('/login');
-                  }
-                }
-              },
-            )
-          else
-            IconButton(
-              icon: const Icon(Icons.login),
-              tooltip: 'Iniciar Sesión',
-              onPressed: () {
-                Navigator.of(context).pushReplacementNamed('/login');
-              },
-            ),
+          // Botón de perfil
+          IconButton(
+            icon: const Icon(Icons.person_outline),
+            tooltip: 'Mi Perfil',
+            onPressed: () {
+              Navigator.of(context).pushNamed('/perfil');
+            },
+          ),
         ],
       ),
       body: RefreshIndicator(
